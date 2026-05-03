@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Definir senha | Tá na Mão</title>
+  <style>
+    :root {
+      --verde: #556B2F;
+      --verde-escuro: #2f3d1d;
+      --dourado: #b89b5e;
+      --fundo: #f6f4ee;
+      --texto: #1f2933;
+      --erro: #b42318;
+      --sucesso: #1f7a3f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(135deg, var(--fundo), #ffffff);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: var(--texto);
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 18px 50px rgba(31, 41, 51, 0.12);
+      border: 1px solid rgba(184, 155, 94, 0.25);
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      color: var(--verde);
+      font-size: 26px;
+      letter-spacing: -0.5px;
+    }
+
+    .brand p {
+      margin: 8px 0 0;
+      color: #667085;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--verde-escuro);
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid #d0d5dd;
+      border-radius: 12px;
+      padding: 14px 14px;
+      font-size: 16px;
+      outline: none;
+      transition: 0.2s;
+      margin-bottom: 14px;
+    }
+
+    input:focus {
+      border-color: var(--verde);
+      box-shadow: 0 0 0 4px rgba(85, 107, 47, 0.12);
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      background: var(--verde);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: var(--verde-escuro);
+    }
+
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .msg {
+      margin-top: 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      text-align: center;
+      min-height: 22px;
+    }
+
+    .msg.erro {
+      color: var(--erro);
+    }
+
+    .msg.sucesso {
+      color: var(--sucesso);
+      font-weight: 700;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #98a2b3;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <h1>Tá na Mão</h1>
+      <p>Crie sua senha para acessar o portal do condomínio.</p>
+    </div>
+
+    <label for="senha">Nova senha</label>
+    <input id="senha" type="password" placeholder="Digite uma senha com no mínimo 6 caracteres" autocomplete="new-password" />
+
+    <label for="confirmarSenha">Confirmar senha</label>
+    <input id="confirmarSenha" type="password" placeholder="Digite novamente a senha" autocomplete="new-password" />
+
+    <button id="botao" onclick="definirSenha()">Salvar senha</button>
+
+    <p id="mensagem" class="msg"></p>
+
+    <div class="footer">Gestão inteligente para condomínios</div>
+  </main>
+
+  <script>
+    const API_URL = 'https://ta-na-mao-9bii.onrender.com'
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+    const mensagem = document.getElementById('mensagem')
+    const botao = document.getElementById('botao')
+
+    function mostrarMensagem(texto, tipo) {
+      mensagem.textContent = texto
+      mensagem.className = 'msg ' + tipo
+    }
+
+    if (!token) {
+      mostrarMensagem('Link inválido: token não encontrado.', 'erro')
+      botao.disabled = true
+    }
+
+    async function definirSenha() {
+      const senha = document.getElementById('senha').value
+      const confirmarSenha = document.getElementById('confirmarSenha').value
+
+      if (!senha || senha.length < 6) {
+        mostrarMensagem('A senha precisa ter pelo menos 6 caracteres.', 'erro')
+        return
+      }
+
+      if (senha !== confirmarSenha) {
+        mostrarMensagem('As senhas não conferem.', 'erro')
+        return
+      }
+
+      botao.disabled = true
+      botao.textContent = 'Salvando...'
+      mostrarMensagem('', '')
+
+      try {
+        const resposta = await fetch(API_URL + '/api/auth/definir-senha', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ token, senha })
+        })
+
+        const data = await resposta.json()
+
+        if (data.ok) {
+          mostrarMensagem('Senha definida com sucesso! Agora você já pode fazer login.', 'sucesso')
+          botao.textContent = 'Senha salva'
+        } else {
+          mostrarMensagem(data.error || 'Não foi possível definir a senha.', 'erro')
+          botao.disabled = false
+          botao.textContent = 'Salvar senha'
+        }
+      } catch (error) {
+        mostrarMensagem('Erro de conexão. Tente novamente em alguns instantes.', 'erro')
+        botao.disabled = false
+        botao.textContent = 'Salvar senha'
+      }
+    }
+  </script>
+</body>
+</html>
