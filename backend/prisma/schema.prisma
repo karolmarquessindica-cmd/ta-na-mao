@@ -196,6 +196,7 @@ model User {
   taxas              Taxa[]       @relation("TaxaMorador")
   reservas           Reserva[]    @relation("ReservaMorador")
   refreshTokens      RefreshToken[]
+passwordResetTokens PasswordResetToken[]
   acessos            CondominioAcesso[]
 }
 
@@ -613,4 +614,13 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }

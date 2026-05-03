@@ -1,0 +1,211 @@
+/* Tá na Mão — Dashboard premium SaaS */
+
+:root {
+  --tnm-green-950: #00150b;
+  --tnm-green-900: #002916;
+  --tnm-green-800: #003b24;
+  --tnm-green-700: #056839;
+  --tnm-green-600: #118847;
+  --tnm-lime: #8dff2a;
+  --tnm-gold: #b99a55;
+  --tnm-bg: #f6f8f4;
+  --tnm-card: #ffffff;
+  --tnm-border: #e3eadf;
+  --tnm-text: #101828;
+  --tnm-muted: #667085;
+}
+
+body {
+  background: #f7faf5 !important;
+}
+
+/* Sidebar desktop — mais clean e parecida com SaaS */
+.sidebar {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(141, 255, 42, 0.10), transparent 28%),
+    linear-gradient(180deg, #00150b 0%, #00301a 100%) !important;
+  border-right: 1px solid rgba(255,255,255,.06) !important;
+  box-shadow: 10px 0 30px rgba(0,21,11,.16) !important;
+}
+
+.nav-item {
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, #067a3d, #0fa24f) !important;
+  box-shadow: 0 10px 22px rgba(0, 120, 65, 0.22) !important;
+}
+
+/* Área principal */
+.main {
+  background:
+    radial-gradient(circle at 8% 4%, rgba(141,255,42,.06), transparent 22%),
+    radial-gradient(circle at 90% 0%, rgba(0,59,36,.05), transparent 24%),
+    #f7faf5 !important;
+}
+
+.topbar {
+  background: rgba(255,255,255,.92) !important;
+  border-bottom: 1px solid rgba(0,59,36,.08) !important;
+  box-shadow: 0 8px 26px rgba(0,35,18,.035) !important;
+}
+
+.page {
+  padding-top: 30px !important;
+}
+
+/* Cabeçalho do dashboard */
+.page h1,
+.page h2:first-child,
+.page [style*='Painel administrativo'] {
+  letter-spacing: -0.04em !important;
+}
+
+/* Cards gerais */
+.card,
+.stat {
+  background: rgba(255,255,255,.96) !important;
+  border: 1px solid rgba(0,59,36,.08) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.055) !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;
+}
+
+.card:hover,
+.stat:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(17,136,71,.18) !important;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.085) !important;
+}
+
+/* Cards de indicadores */
+.stat {
+  min-height: 112px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+}
+
+.stat-n {
+  font-size: 28px !important;
+  font-weight: 900 !important;
+  color: var(--tnm-green-800) !important;
+  letter-spacing: -0.04em !important;
+}
+
+.stat-l {
+  color: var(--tnm-muted) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+/* Ícones em bolhas */
+.icon-soft,
+.stat [class*='icon'],
+.card [class*='icon'] {
+  border-radius: 16px !important;
+}
+
+/* Botões */
+.btn {
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.btn-primary,
+.btn-accent {
+  background: linear-gradient(135deg, #006b3b, #09884a) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(0, 107, 59, .16) !important;
+}
+
+.btn-ghost {
+  background: #fff !important;
+  border: 1px solid var(--tnm-border) !important;
+  color: var(--tnm-green-800) !important;
+}
+
+/* Formulários e filtros */
+input,
+select,
+textarea {
+  border-radius: 12px !important;
+  border-color: #d7e2d4 !important;
+  background: #fff !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #17a34a !important;
+  box-shadow: 0 0 0 4px rgba(34,197,94,.10) !important;
+}
+
+/* Tabelas */
+.table th {
+  background: #f4f8f2 !important;
+  color: #667085 !important;
+  font-weight: 800 !important;
+}
+
+.table td {
+  background: #fff !important;
+}
+
+/* Badges */
+.badge {
+  border-radius: 999px !important;
+  font-weight: 800 !important;
+}
+
+/* Blocos de alerta */
+.card[style*='orange'],
+.card[style*='warning'] {
+  border-left: 4px solid #f59e0b !important;
+}
+
+/* Login mantém premium */
+.login-shell {
+  border-radius: 30px !important;
+}
+
+/* Dashboard grids: quando houver listas de cards, manter respiro */
+.page > div,
+.page section {
+  gap: 16px;
+}
+
+@media (min-width: 1025px) {
+  .page {
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+  }
+}
+
+/* Mobile: mantém padrão clean com menu lateral oculto */
+@media (max-width: 768px) {
+  .page {
+    background: #f7faf5 !important;
+  }
+
+  .topbar {
+    background: rgba(255,255,255,.96) !important;
+  }
+
+  .card,
+  .stat {
+    border-radius: 16px !important;
+    box-shadow: 0 6px 18px rgba(16, 24, 40, 0.055) !important;
+  }
+
+  .stat {
+    min-height: 98px !important;
+  }
+
+  .stat-n {
+    font-size: 24px !important;
+  }
+}

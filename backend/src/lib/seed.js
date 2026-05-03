@@ -5,12 +5,6 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  // Seed só executa em development
-  if (process.env.NODE_ENV && process.env.NODE_ENV !== 'development') {
-    console.error('❌ Seed só pode ser executado em NODE_ENV=development')
-    process.exit(1)
-  }
-
   console.log('🌱 Iniciando seed v2.0...\n')
 
   // Limpar banco
