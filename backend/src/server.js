@@ -28,7 +28,6 @@ import { errorHandler, requestId }      from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
 
 const app = express()
-import cors from "cors";
 
 app.use(cors({
   origin: "https://ta-na-mao-xeim.vercel.app",
