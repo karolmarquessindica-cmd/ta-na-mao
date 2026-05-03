@@ -31,7 +31,10 @@ const app = express()
 import cors from "cors";
 
 app.use(cors({
-  origin: "*"
+  origin: "https://ta-na-mao-xeim.vercel.app",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
 }));
 const PORT = process.env.PORT || 3001
 
