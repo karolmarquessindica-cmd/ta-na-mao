@@ -179,6 +179,34 @@ funcionariosRouter.post('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+funcionariosRouter.post('/:id/redefinir-pin', async (req, res, next) => {
+  try {
+    await ensureFuncionarioTables()
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT * FROM "Funcionario" WHERE "id"=$1 AND "condominioId"=$2 LIMIT 1`,
+      req.params.id,
+      req.user.condominioId
+    )
+    const funcionario = rows?.[0]
+    if (!funcionario) return res.status(404).json({ error: 'Funcionário não encontrado', code: 'NOT_FOUND' })
+
+    const novoPin = gerarPin()
+    const obsAnterior = funcionario.observacoes || ''
+    const registro = `PIN redefinido em ${new Date().toLocaleString('pt-BR')} por usuário ${req.user?.nome || req.user?.email || req.user?.id || 'admin'}`
+    const observacoes = [obsAnterior, registro].filter(Boolean).join('\n')
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Funcionario" SET "pin"=$1, "observacoes"=$2, "updatedAt"=CURRENT_TIMESTAMP WHERE "id"=$3 AND "condominioId"=$4`,
+      novoPin,
+      observacoes,
+      req.params.id,
+      req.user.condominioId
+    )
+
+    res.json({ ok: true, funcionarioId: req.params.id, nome: funcionario.nome, novoPin })
+  } catch (e) { next(e) }
+})
+
 funcionariosRouter.patch('/:id', async (req, res, next) => {
   try {
     await ensureFuncionarioTables()
