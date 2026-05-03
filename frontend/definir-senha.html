@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Definir senha | Tá na Mão</title>
+</head>
+<body>
+  <h2>Definir sua senha</h2>
+
+  <input id="senha" type="password" placeholder="Digite sua nova senha" />
+  <button onclick="definirSenha()">Salvar senha</button>
+
+  <p id="mensagem"></p>
+
+  <script>
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+
+    async function definirSenha() {
+      const senha = document.getElementById('senha').value
+      const mensagem = document.getElementById('mensagem')
+
+      if (!senha || senha.length < 6) {
+        mensagem.innerText = 'A senha precisa ter pelo menos 6 caracteres.'
+        return
+      }
+
+      const resposta = await fetch('https://ta-na-mao-9bii.onrender.com/api/auth/definir-senha', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token,
+          senha
+        })
+      })
+
+      const data = await resposta.json()
+
+      if (data.ok) {
+        mensagem.innerText = 'Senha definida com sucesso! Agora você já pode fazer login.'
+      } else {
+        mensagem.innerText = data.error || 'Erro ao definir senha.'
+      }
+    }
+  </script>
+</body>
+</html>
