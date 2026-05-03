@@ -10,18 +10,18 @@ const border = "#e5ebe3";
 const text = "#111827";
 const muted = "#667085";
 
-function IconBubble({ children, bg = softGreen, color = green }) {
+function IconBubble({ children, bg = softGreen, color = green, size = 52 }) {
   return (
     <div style={{
-      width: 52,
-      height: 52,
+      width: size,
+      height: size,
       borderRadius: 18,
       background: bg,
       color,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: 24,
+      fontSize: size > 44 ? 24 : 18,
       flexShrink: 0
     }}>
       {children}
@@ -75,12 +75,25 @@ export default function Dashboard() {
   ];
 
   const kpis = [
-    { label: "Manutenções", value: "48", note: "15% vs mês anterior", icon: "🔧", bg: "#e8f7ea", color: green },
+    { label: "Manutenções", value: "48", note: "32 preventivas no mês", icon: "🔧", bg: "#e8f7ea", color: green },
     { label: "Chamados", value: "36", note: "6 abertos", icon: "💬", bg: "#efe7ff", color: "#6d28d9", red: true },
     { label: "Avisos", value: "8", note: "2 urgentes", icon: "⚠", bg: "#fff3dc", color: "#f59e0b", red: true },
     { label: "Moradores", value: "1.257", note: "8% vs mês anterior", icon: "👥", bg: "#e8f7ea", color: green },
     { label: "Arrecadado", value: "R$ 125.430,00", note: "12% vs mês anterior", icon: "$", bg: "#e8f7ea", color: green },
     { label: "Comunicados", value: "12", note: "Enviados este mês", icon: "📄", bg: "#efe7ff", color: "#6d28d9" },
+  ];
+
+  const maintenanceInsights = [
+    ["32", "Preventivas", "66% do total", green],
+    ["9", "Corretivas", "em acompanhamento", "#f59e0b"],
+    ["7", "Pendentes", "exigem atenção", "#ef4444"],
+    ["94%", "SLA", "dentro do prazo", green],
+  ];
+
+  const maintenanceRisks = [
+    ["Elevador social", "Lubrificação mensal", "10/05", "Médio", "#f59e0b"],
+    ["Bomba d’água", "Revisão geral", "06/05", "Alto", "#ef4444"],
+    ["Portão automático", "Reparo motor", "06/05", "Alto", "#ef4444"],
   ];
 
   const activities = [
@@ -139,60 +152,70 @@ export default function Dashboard() {
         ))}
       </div>
 
+      <Card style={{padding:22,marginBottom:16,borderLeft:`5px solid ${green}`,background:"linear-gradient(135deg,#ffffff,#f7fcf7)"}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:18,marginBottom:18}}>
+          <div>
+            <h2 style={{fontSize:21,fontWeight:900,color:text,margin:0,letterSpacing:"-.03em"}}>Centro de Manutenções</h2>
+            <p style={{fontSize:13,color:muted,margin:"6px 0 0"}}>Controle preventivo, corretivo e riscos operacionais do condomínio.</p>
+          </div>
+          <button style={{height:40,border:`1px solid #bfe3c8`,borderRadius:10,background:"#fff",color:green,fontWeight:850,padding:"0 18px"}}>Abrir plano de manutenção</button>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+          {maintenanceInsights.map((m,i)=>(
+            <div key={i} style={{background:"#fff",border:`1px solid ${border}`,borderRadius:14,padding:15}}>
+              <strong style={{display:"block",fontSize:24,color:m[3],letterSpacing:"-.04em"}}>{m[0]}</strong>
+              <span style={{display:"block",fontSize:13,fontWeight:850,color:text,marginTop:3}}>{m[1]}</span>
+              <small style={{display:"block",fontSize:11,color:muted,marginTop:5}}>{m[2]}</small>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       <div style={{display:"grid",gridTemplateColumns:"1.42fr 1.05fr 1.1fr",gap:16,marginBottom:16}}>
-        <Card style={{padding:22,minHeight:330}}>
-          <SectionTitle title="Resumo de manutenções" subtitle="Comparativo dos últimos 6 meses" action="6 meses" />
+        <Card style={{padding:22,minHeight:370}}>
+          <SectionTitle title="Evolução das manutenções" subtitle="Comparativo preventivas x corretivas dos últimos 6 meses" action="6 meses" />
           <div style={{display:"flex",gap:22,alignItems:"center",fontSize:13,fontWeight:800,color:"#344054",marginBottom:10}}>
             <span><span style={{display:"inline-block",width:9,height:9,borderRadius:999,background:green,marginRight:8}}/>Preventivas</span>
             <span><span style={{display:"inline-block",width:9,height:9,borderRadius:999,background:"#98a2b3",marginRight:8}}/>Corretivas</span>
           </div>
-          <ResponsiveContainer width="100%" height={225}>
+          <ResponsiveContainer width="100%" height={250}>
             <LineChart data={chartData} margin={{top: 8, right: 12, left: -18, bottom: 0}}>
               <CartesianGrid stroke="#eef2ec" vertical={false} />
               <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{fontSize:12, fill: "#667085"}} />
               <YAxis tickLine={false} axisLine={false} tick={{fontSize:12, fill: "#667085"}} />
               <Tooltip contentStyle={{borderRadius:12,border:`1px solid ${border}`,boxShadow:"0 8px 24px rgba(16,24,40,.08)"}} />
-              <Line type="monotone" dataKey="prev" stroke={green} strokeWidth={3} dot={{r:4,fill:green}} activeDot={{r:6}} />
-              <Line type="monotone" dataKey="corr" stroke="#98a2b3" strokeWidth={2.2} strokeDasharray="6 5" dot={{r:4,fill:"#98a2b3"}} />
+              <Line type="monotone" dataKey="prev" stroke={green} strokeWidth={3.4} dot={{r:4,fill:green}} activeDot={{r:6}} />
+              <Line type="monotone" dataKey="corr" stroke="#98a2b3" strokeWidth={2.4} strokeDasharray="6 5" dot={{r:4,fill:"#98a2b3"}} />
             </LineChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card style={{padding:22,minHeight:330}}>
-          <SectionTitle title="Chamados por status" />
-          <div style={{display:"grid",gridTemplateColumns:"160px 1fr",alignItems:"center",gap:18}}>
-            <div style={{position:"relative",height:205}}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={pieData} dataKey="value" innerRadius={55} outerRadius={82} paddingAngle={0}>
-                    {pieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",pointerEvents:"none"}}>
-                <strong style={{fontSize:31,color:text}}>36</strong>
-                <span style={{fontSize:12,color:muted,fontWeight:700}}>Total</span>
-              </div>
-            </div>
-            <div style={{display:"grid",gap:14}}>
-              {pieData.map((p)=> (
-                <div key={p.name} style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:10,alignItems:"center",fontSize:12,color:"#344054"}}>
-                  <span><i style={{display:"inline-block",width:10,height:10,borderRadius:999,background:p.color,marginRight:8}} />{p.name}</span>
-                  <b>{p.value}</b>
-                  <span>({p.percent})</span>
+        <Card style={{padding:22,minHeight:370}}>
+          <SectionTitle title="Riscos e vencimentos" subtitle="Itens que precisam de atenção técnica" action="Ver agenda" />
+          <div style={{display:"grid",gap:13}}>
+            {maintenanceRisks.map((r,i)=>(
+              <div key={i} style={{border:`1px solid ${border}`,borderRadius:14,padding:13,background:i===1?"#fff7ed":"#fff"}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"center"}}>
+                  <strong style={{fontSize:13,color:text}}>{r[0]}</strong>
+                  <span style={{background:r[4]+"18",color:r[4],borderRadius:999,padding:"5px 9px",fontSize:11,fontWeight:900}}>{r[3]}</span>
                 </div>
-              ))}
-            </div>
+                <span style={{display:"block",fontSize:12,color:muted,marginTop:5}}>{r[1]}</span>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10}}>
+                  <small style={{fontSize:11,color:muted}}>Vencimento: {r[2]}</small>
+                  <button style={{border:0,background:"transparent",color:green,fontSize:12,fontWeight:850}}>Detalhes</button>
+                </div>
+              </div>
+            ))}
           </div>
-          <button style={{width:"70%",margin:"8px auto 0",display:"flex",alignItems:"center",justifyContent:"center",height:42,borderRadius:10,border:`1px solid #bfe3c8`,background:"#fff",color:green,fontWeight:850}}>Ver todos os chamados</button>
         </Card>
 
-        <Card style={{padding:22,minHeight:330}}>
+        <Card style={{padding:22,minHeight:370}}>
           <SectionTitle title="Atividades recentes" action="Ver todas" />
           <div style={{display:"grid",gap:20}}>
             {activities.map((a, i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:14}}>
-                <IconBubble bg={a[4]}>{a[0]}</IconBubble>
+                <IconBubble bg={a[4]} size={46}>{a[0]}</IconBubble>
                 <div style={{flex:1,minWidth:0}}>
                   <strong style={{display:"block",fontSize:13,color:text}}>{a[1]}</strong>
                   <span style={{display:"block",fontSize:12,color:muted,marginTop:3}}>{a[2]}</span>
@@ -222,7 +245,7 @@ export default function Dashboard() {
           <div style={{display:"grid",gap:15}}>
             {maintenance.map((m,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:12}}>
-                <IconBubble bg="#e8f7ea" color={green}>🔧</IconBubble>
+                <IconBubble bg="#e8f7ea" color={green} size={44}>🔧</IconBubble>
                 <div style={{flex:1}}><strong style={{fontSize:13,color:text}}>{m[0]}</strong><span style={{display:"block",fontSize:12,color:muted,marginTop:3}}>{m[1]}</span></div>
                 <span style={{background:"#dcfce7",color:green,borderRadius:999,padding:"7px 11px",fontSize:11,fontWeight:850}}>Preventiva</span>
               </div>
@@ -235,7 +258,7 @@ export default function Dashboard() {
           <div style={{display:"grid",gap:16}}>
             {comunicados.map((c,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:12}}>
-                <IconBubble bg="#e8f7ea" color={green}>📄</IconBubble>
+                <IconBubble bg="#e8f7ea" color={green} size={44}>📄</IconBubble>
                 <div style={{flex:1}}><strong style={{fontSize:13,color:text}}>{c[0]}</strong><span style={{display:"block",fontSize:12,color:muted,marginTop:3}}>{c[1]}</span></div>
                 <span style={{background:"#dcfce7",color:green,borderRadius:999,padding:"7px 11px",fontSize:11,fontWeight:850}}>{c[2]}</span>
               </div>
