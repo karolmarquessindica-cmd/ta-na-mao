@@ -1,4 +1,4 @@
-/* Mobile limpo — Tá na Mão */
+/* Tá na Mão — responsividade minimalista premium */
 
 html,
 body,
@@ -8,90 +8,163 @@ body,
   overflow-x: hidden;
 }
 
-@media (max-width: 1024px) {
-  .main {
-    margin-left: 0 !important;
-  }
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
 
+/* Desktop/tablet: mantém o sistema como painel completo, só mais leve */
+.sidebar {
+  width: 232px !important;
+  box-shadow: 12px 0 34px rgba(0, 21, 11, 0.16) !important;
+}
+
+.main {
+  margin-left: 232px !important;
+}
+
+.topbar {
+  padding-left: calc(232px + 26px) !important;
+  min-height: 66px !important;
+}
+
+.card,
+.stat {
+  box-shadow: 0 8px 24px rgba(0, 35, 18, 0.055) !important;
+  border-color: rgba(0, 59, 36, 0.08) !important;
+}
+
+.card:hover,
+.stat:hover {
+  box-shadow: 0 10px 28px rgba(0, 35, 18, 0.08) !important;
+}
+
+.page {
+  max-width: 1260px;
+  margin: 0 auto;
+}
+
+/* Tablet: sidebar mais compacta, sem quebrar funções */
+@media (max-width: 1100px) and (min-width: 769px) {
   .sidebar {
-    position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
-    top: auto !important;
-    bottom: 0 !important;
-    z-index: 999 !important;
-    width: 100% !important;
-    min-height: 72px !important;
-    height: 72px !important;
-    max-height: 72px !important;
-    transform: none !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    gap: 8px !important;
-    padding: 8px 10px !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    background: rgba(0, 21, 11, 0.96) !important;
-    box-shadow: 0 -12px 34px rgba(0, 21, 11, 0.24) !important;
+    width: 86px !important;
+    overflow-x: hidden !important;
   }
 
-  .sidebar > *:not(.nav-item),
-  .nav-section,
+  .main {
+    margin-left: 86px !important;
+  }
+
+  .topbar {
+    padding-left: calc(86px + 22px) !important;
+  }
+
   .sidebar .brand-word,
   .sidebar .brand-sub,
-  .sidebar .brand-mark {
+  .nav-section,
+  .sidebar [style*='Roberto'],
+  .sidebar [style*='ADMIN'] {
     display: none !important;
   }
 
-  .sidebar div:has(.nav-item),
-  .sidebar nav,
-  .sidebar ul {
-    display: flex !important;
-    flex-direction: row !important;
-    gap: 8px !important;
-    width: auto !important;
-    min-width: max-content !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
   .nav-item {
-    width: auto !important;
-    min-width: 82px !important;
-    height: 52px !important;
-    margin: 0 !important;
-    padding: 6px 10px !important;
-    border-radius: 16px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
     justify-content: center !important;
-    gap: 4px !important;
-    font-size: 10.5px !important;
-    line-height: 1.1 !important;
-    white-space: nowrap !important;
-  }
-
-  .nav-item.active {
-    color: #002513 !important;
-    background: linear-gradient(135deg, #22c55e, #8dff2a) !important;
+    padding: 12px 8px !important;
+    font-size: 0 !important;
   }
 
   .nav-item svg {
-    width: 18px !important;
-    height: 18px !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+/* Celular: painel limpo com menu lateral compacto e rolável */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: auto !important;
+    width: 76px !important;
+    min-height: 100vh !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    transform: none !important;
+    z-index: 1000 !important;
+    padding: 14px 8px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    background: linear-gradient(180deg, #00150b 0%, #00331d 100%) !important;
+    box-shadow: 8px 0 24px rgba(0, 21, 11, 0.18) !important;
+  }
+
+  .main {
+    margin-left: 76px !important;
+    width: calc(100% - 76px) !important;
   }
 
   .topbar {
     padding: 10px 12px !important;
     min-height: 58px !important;
     height: auto !important;
-    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .topbar h1,
+  .topbar h2,
+  .topbar strong,
+  .topbar span {
+    max-width: 160px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
 
   .page {
-    padding: 16px 12px 96px !important;
+    padding: 18px 12px 28px !important;
+    max-width: none !important;
+  }
+
+  .sidebar .brand-word,
+  .sidebar .brand-sub,
+  .nav-section,
+  .sidebar [style*='Roberto'],
+  .sidebar [style*='ADMIN'] {
+    display: none !important;
+  }
+
+  .sidebar .brand-mark {
+    width: 40px !important;
+    height: 40px !important;
+    margin: 0 auto 18px !important;
+    display: flex !important;
+  }
+
+  .nav-item {
+    width: 100% !important;
+    height: 48px !important;
+    min-width: 0 !important;
+    margin: 0 0 8px !important;
+    padding: 8px !important;
+    border-radius: 16px !important;
+    justify-content: center !important;
+    gap: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .nav-item svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .nav-item.active {
+    background: linear-gradient(135deg, #22c55e, #8dff2a) !important;
+    color: #002513 !important;
+    box-shadow: 0 8px 18px rgba(34, 197, 94, 0.25) !important;
   }
 
   .row2,
@@ -99,31 +172,92 @@ body,
     grid-template-columns: 1fr !important;
   }
 
-  .table {
-    min-width: 720px;
+  .card,
+  .stat {
+    border-radius: 18px !important;
   }
 
-  .card:has(.table),
-  .table-wrap,
-  .table-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-@media (max-width: 560px) {
-  .nav-item {
-    min-width: 76px !important;
-    font-size: 10px !important;
+  .stat {
+    padding: 16px !important;
   }
 
-  .page {
-    padding: 14px 10px 96px !important;
+  .stat-n {
+    font-size: 28px !important;
+  }
+
+  .btn {
+    min-height: 42px !important;
+    justify-content: center !important;
   }
 
   input,
   select,
   textarea {
     font-size: 16px !important;
+  }
+
+  .table {
+    min-width: 720px !important;
+  }
+
+  .card:has(.table),
+  .table-wrap,
+  .table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 92vh !important;
+    border-radius: 22px 22px 0 0 !important;
+  }
+}
+
+/* Celular pequeno: ainda mais compacto */
+@media (max-width: 480px) {
+  .sidebar {
+    width: 64px !important;
+    padding: 12px 6px !important;
+  }
+
+  .main {
+    margin-left: 64px !important;
+    width: calc(100% - 64px) !important;
+  }
+
+  .sidebar .brand-mark {
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .nav-item {
+    height: 44px !important;
+    border-radius: 14px !important;
+  }
+
+  .nav-item svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .page {
+    padding: 14px 10px 24px !important;
+  }
+}
+
+@supports not selector(:has(*)) {
+  @media (max-width: 768px) {
+    .table {
+      display: block !important;
+      overflow-x: auto !important;
+      white-space: nowrap !important;
+    }
   }
 }
