@@ -1,4 +1,4 @@
-/* Tá na Mão — responsividade minimalista premium */
+/* Tá na Mão — padrão SaaS profissional e responsivo */
 
 html,
 body,
@@ -15,34 +15,154 @@ canvas {
   max-width: 100%;
 }
 
+body {
+  background: #f6f8f4 !important;
+}
+
 .sidebar {
   width: 232px !important;
+  background: linear-gradient(180deg, #06150d 0%, #0b2b19 55%, #06120b 100%) !important;
+  border-right: 1px solid rgba(255,255,255,.06) !important;
   box-shadow: 12px 0 34px rgba(0, 21, 11, 0.16) !important;
 }
 
 .main {
   margin-left: 232px !important;
+  background: #f6f8f4 !important;
 }
 
 .topbar {
   padding-left: calc(232px + 26px) !important;
   min-height: 66px !important;
+  background: rgba(255,255,255,.96) !important;
+  border-bottom: 1px solid rgba(16,24,40,.06) !important;
+  box-shadow: 0 8px 22px rgba(16,24,40,.035) !important;
+}
+
+.page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding-top: 30px !important;
+}
+
+.page h1,
+.page h2,
+.page h3 {
+  color: #101828 !important;
+  letter-spacing: -0.035em !important;
 }
 
 .card,
 .stat {
-  box-shadow: 0 8px 24px rgba(0, 35, 18, 0.055) !important;
-  border-color: rgba(0, 59, 36, 0.08) !important;
+  background: #fff !important;
+  border: 1px solid #e7ece3 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.045) !important;
+  transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease !important;
 }
 
 .card:hover,
 .stat:hover {
-  box-shadow: 0 10px 28px rgba(0, 35, 18, 0.08) !important;
+  transform: translateY(-1px) !important;
+  border-color: #d7e5d0 !important;
+  box-shadow: 0 12px 28px rgba(16, 24, 40, 0.07) !important;
 }
 
-.page {
-  max-width: 1260px;
-  margin: 0 auto;
+.stat {
+  min-height: 112px !important;
+  padding: 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+
+.stat-n {
+  font-size: 30px !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.04em !important;
+  color: #101828 !important;
+}
+
+.stat-l {
+  color: #667085 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.row2,
+.row3 {
+  gap: 16px !important;
+}
+
+.table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.table th {
+  background: #f3f7f1 !important;
+  color: #667085 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  border-bottom: 1px solid #e7ece3 !important;
+}
+
+.table td {
+  background: #fff !important;
+  border-bottom: 1px solid #eef2ec !important;
+}
+
+.table tr:hover td {
+  background: #fbfdf9 !important;
+}
+
+.btn {
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.btn-primary,
+.btn-accent {
+  background: linear-gradient(135deg, #075c33, #0f7a3d) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(7, 92, 51, 0.16) !important;
+}
+
+.btn-ghost {
+  background: #fff !important;
+  border: 1px solid #d9e3d8 !important;
+  color: #075c33 !important;
+}
+
+.badge {
+  border-radius: 999px !important;
+  font-weight: 800 !important;
+}
+
+input,
+select,
+textarea {
+  border-color: #d9e3d8 !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #0f7a3d !important;
+  box-shadow: 0 0 0 4px rgba(15, 122, 61, .10) !important;
+}
+
+.nav-item {
+  border-radius: 12px !important;
+  font-weight: 750 !important;
+}
+
+.nav-item.active {
+  background: rgba(255,255,255,.12) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.10) !important;
 }
 
 @media (max-width: 1100px) and (min-width: 769px) {
@@ -100,7 +220,7 @@ canvas {
     height: 46px !important;
     border: 0 !important;
     border-radius: 0 18px 18px 0 !important;
-    background: #1f6b12 !important;
+    background: #075c33 !important;
     color: #ffffff !important;
     align-items: center !important;
     justify-content: center !important;
@@ -158,7 +278,7 @@ canvas {
     padding: 18px 10px !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    background: linear-gradient(180deg, #1f6b12 0%, #14520d 100%) !important;
+    background: linear-gradient(180deg, #075c33 0%, #05391f 100%) !important;
     box-shadow: 10px 0 32px rgba(0, 21, 11, 0.28) !important;
   }
 
@@ -231,12 +351,6 @@ canvas {
     width: 20px !important;
     height: 20px !important;
     flex-shrink: 0 !important;
-  }
-
-  .nav-item.active {
-    background: rgba(255, 255, 255, 0.14) !important;
-    color: #ffffff !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16) !important;
   }
 
   .row2,
