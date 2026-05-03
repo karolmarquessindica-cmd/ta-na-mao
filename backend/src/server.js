@@ -23,6 +23,7 @@ import { iaRouter }          from './routes/ia.js'
 import { condominioRouter }  from './routes/condominio.js'
 import { portalRouter }      from './routes/portal.js'
 import { checklistsRouter }  from './routes/checklists.js'
+import { funcionariosRouter } from './routes/funcionarios.js'
 import { agendadorRouter } from './jobs/agendador.js'
 import { errorHandler, requestId }      from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
@@ -134,6 +135,7 @@ app.use('/api/relatorios',    relatorioRouter)
 app.use('/api/ia',            iaRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/checklists',    checklistsRouter)
+app.use('/api/funcionarios',  funcionariosRouter)
 app.use('/api/portal',        portalRouter)
 app.use('/api/jobs',          agendadorRouter)
 
