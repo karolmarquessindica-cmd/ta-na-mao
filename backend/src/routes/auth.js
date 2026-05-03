@@ -362,3 +362,71 @@ authRouter.patch('/users/:id', authenticate, requireRole('ADMIN', 'SINDICO'), as
     next(e)
   }
 })
+// DELETE /api/auth/users/:id
+authRouter.delete('/users/:id', authenticate, requireRole('ADMIN', 'SINDICO'), async (req, res, next) => {
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        id: req.params.id,
+        condominioId: req.user.condominioId
+      }
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'Usuário não encontrado',
+        code: 'NOT_FOUND'
+      })
+    }
+
+    await prisma.user.delete({
+      where: { id: req.params.id }
+    })
+
+    res.json({ ok: true })
+  } catch (e) {
+    next(e)
+  }
+})
+
+// POST /api/auth/users/:id/reset-senha
+authRouter.post('/users/:id/reset-senha', authenticate, requireRole('ADMIN', 'SINDICO'), async (req, res, next) => {
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        id: req.params.id,
+        condominioId: req.user.condominioId
+      }
+    })
+
+    if (!user) {
+      return res.status(404).json({
+        error: 'Usuário não encontrado',
+        code: 'NOT_FOUND'
+      })
+    }
+
+    const token = crypto.randomBytes(32).toString('hex')
+
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
+
+    await prisma.passwordResetToken.create({
+      data: {
+        token,
+        userId: user.id,
+        expiresAt
+      }
+    })
+
+    const frontendUrl = process.env.FRONTEND_URL || 'https://ta-na-mao-xeim.vercel.app'
+
+    const conviteLink = `${frontendUrl.replace(/\/$/, '')}/definir-senha.html?token=${token}`
+
+    res.json({
+      ok: true,
+      conviteLink
+    })
+  } catch (e) {
+    next(e)
+  }
+})
