@@ -28,6 +28,11 @@ import { errorHandler, requestId }      from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
 
 const app = express()
+import cors from "cors";
+
+app.use(cors({
+  origin: "*"
+}));
 const PORT = process.env.PORT || 3001
 
 function getRedisTarget() {
