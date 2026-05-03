@@ -22,6 +22,8 @@ export default function GerenciadorFuncionarios() {
   const [funcionarios, setFuncionarios] = useState([])
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState('')
+  const [qr, setQr] = useState(null)
+  const [qrLoading, setQrLoading] = useState(false)
   const [form, setForm] = useState({ nome: '', funcao: '', whatsapp: '', telefone: '', email: '', pin: '' })
 
   async function carregar() {
@@ -51,6 +53,41 @@ export default function GerenciadorFuncionarios() {
     }
   }
 
+  async function gerarQr() {
+    setErro('')
+    setQrLoading(true)
+    try {
+      const resp = await apiReq('GET', '/funcionarios/qr-link')
+      setQr(resp)
+    } catch (e) {
+      setErro(e.message)
+    } finally {
+      setQrLoading(false)
+    }
+  }
+
+  async function copiarLink() {
+    if (!qr?.link) return
+    await navigator.clipboard.writeText(qr.link)
+    alert('Link copiado!')
+  }
+
+  function imprimirQr() {
+    if (!qr?.qrCodeUrl) return
+    const win = window.open('', '_blank')
+    win.document.write(`
+      <html><head><title>QR Code do Funcionário</title></head>
+      <body style="font-family:Arial;text-align:center;padding:40px">
+        <h2>Portal do Funcionário</h2>
+        <p>Escaneie o QR Code para registrar o ponto.</p>
+        <img src="${qr.qrCodeUrl}" style="width:320px;height:320px" />
+        <p style="font-size:12px;margin-top:20px;word-break:break-all">${qr.link}</p>
+        <script>window.onload = () => window.print()</script>
+      </body></html>
+    `)
+    win.document.close()
+  }
+
   async function inativar(id) {
     if (!confirm('Inativar este funcionário?')) return
     try {
@@ -71,13 +108,34 @@ export default function GerenciadorFuncionarios() {
           <h1 style={{fontSize:28, fontWeight:900, margin:0}}>Funcionários</h1>
           <p style={{color:'#68766D', marginTop:6}}>Cadastre colaboradores, PIN e acompanhe o painel do funcionário.</p>
         </div>
-        <div style={{display:'flex', gap:10}}>
+        <div style={{display:'flex', gap:10, alignItems:'stretch'}}>
+          <button className="btn btn-primary" onClick={gerarQr} disabled={qrLoading}>
+            {qrLoading ? 'Gerando...' : 'Gerar QR do ponto'}
+          </button>
           <div className="card" style={{padding:14, minWidth:120}}><b style={{fontSize:24,color:'#16A34A'}}>{ativos}</b><div style={{fontSize:12}}>Ativos</div></div>
           <div className="card" style={{padding:14, minWidth:120}}><b style={{fontSize:24,color:'#EF4444'}}>{inativos}</b><div style={{fontSize:12}}>Inativos</div></div>
         </div>
       </div>
 
       {erro && <div className="card" style={{padding:12, marginBottom:14, color:'#721c24', background:'#fff5f5'}}>{erro}</div>}
+
+      {qr && (
+        <div className="card" style={{padding:20, marginBottom:18, display:'grid', gridTemplateColumns:'180px 1fr', gap:18, alignItems:'center', borderLeft:'5px solid #16A34A'}}>
+          <div style={{background:'#fff', border:'1px solid #DDE7DE', borderRadius:18, padding:12, textAlign:'center'}}>
+            <img src={qr.qrCodeUrl} alt="QR Code do Portal do Funcionário" style={{width:150, height:150}} />
+          </div>
+          <div>
+            <h3 style={{margin:'0 0 6px'}}>QR Code do Portal do Funcionário</h3>
+            <p style={{color:'#68766D', margin:'0 0 12px'}}>Imprima este QR e deixe na portaria/ambiente de trabalho. O funcionário escaneia, escolhe o nome, digita o PIN e registra o ponto.</p>
+            <div style={{background:'#F5F8F3', border:'1px solid #DDE7DE', borderRadius:12, padding:10, fontSize:12, wordBreak:'break-all', marginBottom:12}}>{qr.link}</div>
+            <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+              <button className="btn btn-sm btn-ghost" onClick={copiarLink}>Copiar link</button>
+              <button className="btn btn-sm btn-primary" onClick={imprimirQr}>Imprimir QR</button>
+              <a className="btn btn-sm btn-ghost" href={qr.link} target="_blank" rel="noreferrer">Abrir portal</a>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{display:'grid', gridTemplateColumns:'360px 1fr', gap:18}}>
         <form onSubmit={salvar} className="card" style={{padding:20}}>
