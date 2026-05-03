@@ -1,0 +1,45 @@
+[2026-04-29T18:53:18.017Z] [8c501be9-dc1f-4830-bf52-d7e08175af17] Error: MulterError: File too large
+    at abortWithCode (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\multer\lib\make-middleware.js:73:22)
+    at FileStream.<anonymous> (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\multer\lib\make-middleware.js:136:11)
+    at FileStream.emit (node:events:509:28)
+    at SBMH.ssCb [as _cb] (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\busboy\lib\types\multipart.js:479:32)
+    at feed (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\streamsearch\lib\sbmh.js:248:10)
+    at SBMH.push (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\streamsearch\lib\sbmh.js:104:16)
+    at Multipart._write (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\busboy\lib\types\multipart.js:567:19)
+    at writeOrBuffer (node:internal/streams/writable:570:12)
+    at _write (node:internal/streams/writable:499:10)
+    at Writable.write (node:internal/streams/writable:508:10) {
+  code: 'LIMIT_FILE_SIZE',
+  field: 'arquivo',
+  storageErrors: []
+}
+[2026-04-29T18:53:19.049Z] [c562efe4-317b-4e3d-b490-ec5e461003e5] Error: MulterError: File too large
+    at abortWithCode (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\multer\lib\make-middleware.js:73:22)
+    at FileStream.<anonymous> (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\multer\lib\make-middleware.js:136:11)
+    at FileStream.emit (node:events:509:28)
+    at SBMH.ssCb [as _cb] (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\busboy\lib\types\multipart.js:479:32)
+    at feed (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\streamsearch\lib\sbmh.js:248:10)
+    at SBMH.push (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\streamsearch\lib\sbmh.js:104:16)
+    at Multipart._write (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\busboy\lib\types\multipart.js:567:19)
+    at writeOrBuffer (node:internal/streams/writable:570:12)
+    at _write (node:internal/streams/writable:499:10)
+    at Writable.write (node:internal/streams/writable:508:10) {
+  code: 'LIMIT_FILE_SIZE',
+  field: 'arquivo',
+  storageErrors: []
+}
+[2026-04-29T18:53:40.744Z] [00570dd6-169e-45c3-beb8-60594c7af0d4] Error: MulterError: File too large
+    at abortWithCode (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\multer\lib\make-middleware.js:73:22)
+    at FileStream.<anonymous> (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\multer\lib\make-middleware.js:136:11)
+    at FileStream.emit (node:events:509:28)
+    at SBMH.ssCb [as _cb] (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\busboy\lib\types\multipart.js:479:32)
+    at feed (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\streamsearch\lib\sbmh.js:248:10)
+    at SBMH.push (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\streamsearch\lib\sbmh.js:104:16)
+    at Multipart._write (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\busboy\lib\types\multipart.js:567:19)
+    at writeOrBuffer (node:internal/streams/writable:570:12)
+    at _write (node:internal/streams/writable:499:10)
+    at Writable.write (node:internal/streams/writable:508:10) {
+  code: 'LIMIT_FILE_SIZE',
+  field: 'arquivo',
+  storageErrors: []
+}

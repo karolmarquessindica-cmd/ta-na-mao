@@ -1,0 +1,616 @@
+// prisma/schema.prisma — Tá na Mão v2.0
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SINDICO
+  MORADOR
+}
+
+enum ManutencaoTipo {
+  PREVENTIVA
+  CORRETIVA
+}
+
+enum ManutencaoStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDO
+}
+
+enum Prioridade {
+  ALTA
+  MEDIA
+  BAIXA
+}
+
+enum ChamadoStatus {
+  ABERTO
+  EM_ANALISE
+  CONCLUIDO
+}
+
+enum ChamadoCategoria {
+  MANUTENCAO
+  RECLAMACAO
+  SUGESTAO
+}
+
+enum DocumentoAcesso {
+  PUBLICO
+  PRIVADO
+}
+
+enum DenunciaCategoria {
+  VIOLENCIA_DOMESTICA
+  PROBLEMA_INTERNO
+  CONDUTA_INADEQUADA
+  OUTRO
+}
+
+enum DenunciaStatus {
+  RECEBIDO
+  EM_ANALISE
+  EM_ANDAMENTO
+  CONCLUIDO
+}
+
+enum NotificacaoTipo {
+  CHAMADO_ABERTO
+  CHAMADO_ATUALIZADO
+  CHAMADO_CONCLUIDO
+  MANUTENCAO_VENCENDO
+  COMUNICADO
+  FINANCEIRO
+  RESERVA
+}
+
+enum WhatsAppStatus {
+  ENVIADO
+  FALHOU
+  PENDENTE
+}
+
+enum TaxaStatus {
+  PENDENTE
+  PAGO
+  ATRASADO
+  ISENTO
+}
+
+enum ReservaStatus {
+  AGUARDANDO
+  CONFIRMADA
+  CANCELADA
+}
+
+enum ContaSindicoCategoria {
+  IMPOSTO
+  MAO_DE_OBRA
+  FORNECEDOR
+  MANUTENCAO
+  SERVICO
+  UTILIDADE
+  SEGURO
+  OUTRO
+}
+
+enum ContaSindicoStatus {
+  A_PAGAR
+  AGENDADO
+  PAGO
+  VENCIDO
+  CANCELADO
+}
+
+enum TipoEdificacao {
+  RESIDENCIAL_VERTICAL
+  RESIDENCIAL_HORIZONTAL
+  COMERCIAL
+  MISTO
+  ASSOCIACAO_LOTEAMENTO
+}
+
+model Condominio {
+  id         String   @id @default(uuid())
+  nome       String
+  endereco   String
+  cnpj       String?  @unique
+  telefone   String?
+  email      String?
+  logo       String?
+  ativo      Boolean  @default(true)
+  cidade     String?
+  estado     String?
+  cep        String?
+  tipoEdificacao TipoEdificacao @default(RESIDENCIAL_VERTICAL)
+  blocos     Int?
+  unidades   Int?
+  pavimentos Int?
+  mandatoInicio DateTime?
+  mandatoFim    DateTime?
+  seguroPossui     Boolean   @default(false)
+  seguroSeguradora String?
+  seguroApolice    String?
+  seguroInicio     DateTime?
+  seguroVencimento DateTime?
+  seguroDocumento  String?
+  portalConfig     Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  users          User[]
+  acessos        CondominioAcesso[]
+  manutencoes    Manutencao[]
+  planoManutencao PlanoManutencaoItem[]
+  chamados       Chamado[]
+  documentos     Documento[]
+  banners        Banner[]
+  inventarios    Inventario[]
+  denuncias      Denuncia[]
+  vozes          VozMorador[]
+  comunicados    Comunicado[]
+  notificacoes   Notificacao[]
+  checklistTemplates ChecklistTemplate[]
+  checklistExecucoes ChecklistExecution[]
+  whatsappLogs   WhatsAppLog[]
+  taxas          Taxa[]
+  contasSindico  ContaSindico[]
+  espacos        EspacoComum[]
+  reservas       Reserva[]
+  configWhatsapp ConfigWhatsApp?
+}
+
+model User {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  role      Role     @default(MORADOR)
+  unidade   String?
+  bloco     String?
+  telefone  String?
+  whatsapp  String?
+  avatar    String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+
+  chamadosAbertos    Chamado[]    @relation("ChamadoMorador")
+  chamadosAtribuidos Chamado[]    @relation("ChamadoResponsavel")
+  votos              Voto[]
+  vozes              VozMorador[] @relation("VozAutor")
+  comentarios        Comentario[]
+  notificacoes       Notificacao[]
+  taxas              Taxa[]       @relation("TaxaMorador")
+  reservas           Reserva[]    @relation("ReservaMorador")
+  refreshTokens      RefreshToken[]
+  acessos            CondominioAcesso[]
+}
+
+model Manutencao {
+  id             String           @id @default(uuid())
+  titulo         String
+  descricao      String?
+  tipo           ManutencaoTipo
+  status         ManutencaoStatus @default(PENDENTE)
+  prioridade     Prioridade       @default(MEDIA)
+  responsavel    String?
+  empresa        String?
+  custo          Float?
+  dataVencimento DateTime?
+  dataConclusao  DateTime?
+  fotos          String[]
+  checklist      Json?
+  observacoes    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  condominioId String
+  condominio   Condominio  @relation(fields: [condominioId], references: [id])
+  inventarioId String?
+  inventario   Inventario? @relation(fields: [inventarioId], references: [id])
+  planoItens   PlanoManutencaoItem[]
+}
+
+enum ChecklistStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
+}
+
+enum ChecklistRecorrencia {
+  MANUAL
+  DIARIO
+  SEMANAL
+  MENSAL
+  TRIMESTRAL
+  ANUAL
+}
+
+model ChecklistTemplate {
+  id                String           @id @default(uuid())
+  nome              String
+  descricao         String?
+  categoria         String?
+  recorrencia       ChecklistRecorrencia @default(MANUAL)
+  responsavelPadrao String?
+  ativo             Boolean          @default(true)
+  campos            Json
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+  execucoes    ChecklistExecution[]
+}
+
+model ChecklistExecution {
+  id                   String           @id @default(uuid())
+  templateId           String?
+  template             ChecklistTemplate? @relation(fields: [templateId], references: [id])
+  nome                 String
+  responsavel          String?
+  responsavelTipo      String?
+  status               ChecklistStatus  @default(PENDENTE)
+  dataPrevista         DateTime?
+  dataConclusao        DateTime?
+  prazoConclusao       String?
+  respostas            Json?
+  observacoes          String?
+  assinatura           String?
+  fotos                String[]         @default([])
+  anexos               String[]         @default([])
+  historico            Json?
+  allowPublic          Boolean          @default(false)
+  publicoToken         String?          @unique
+  publicoTokenCriadoAt DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model CondominioAcesso {
+  id        String   @id @default(uuid())
+  role      Role     @default(SINDICO)
+  createdAt DateTime @default(now())
+
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, condominioId])
+}
+
+model PlanoManutencaoItem {
+  id              String     @id @default(uuid())
+  codigo          String
+  nome            String
+  categoria       String
+  frequencia      String
+  periodicidade   String
+  referenciaLegal String?
+  prioridade      Prioridade @default(MEDIA)
+  ativo           Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+  manutencaoId String?
+  manutencao   Manutencao? @relation(fields: [manutencaoId], references: [id], onDelete: SetNull)
+
+  @@unique([condominioId, codigo])
+}
+
+model Documento {
+  id        String          @id @default(uuid())
+  nome      String
+  descricao String?
+  pasta     String          @default("Geral")
+  tipo      String
+  acesso    DocumentoAcesso @default(PUBLICO)
+  url       String
+  tamanho   Int?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model Chamado {
+  id            String           @id @default(uuid())
+  titulo        String
+  descricao     String
+  categoria     ChamadoCategoria
+  status        ChamadoStatus    @default(ABERTO)
+  prioridade    Prioridade       @default(MEDIA)
+  fotos         String[]
+  resposta      String?
+  dataConclusao DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  moradorId     String
+  morador       User       @relation("ChamadoMorador",     fields: [moradorId],    references: [id])
+  responsavelId String?
+  responsavel   User?      @relation("ChamadoResponsavel", fields: [responsavelId], references: [id])
+  condominioId  String
+  condominio    Condominio @relation(fields: [condominioId], references: [id])
+
+  historico HistoricoChamado[]
+}
+
+model HistoricoChamado {
+  id        String   @id @default(uuid())
+  acao      String
+  nota      String?
+  createdAt DateTime @default(now())
+
+  chamadoId String
+  chamado   Chamado @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+}
+
+model VozMorador {
+  id                 String    @id @default(uuid())
+  titulo             String
+  descricao          String?
+  tipo               String    @default("SUGESTAO_MELHORIA")
+  categoria          String?
+  status             String    @default("ABERTA")
+  visivelPortal      Boolean   @default(true)
+  destaqueSemana     Boolean   @default(false)
+  fixado             Boolean   @default(false)
+  anexos             String[]  @default([])
+  respostaSindico    String?
+  transformadoEmId   String?
+  transformadoChamadoId String?
+  ativo              Boolean   @default(true)
+  encerradoEm        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  autorId      String
+  autor        User       @relation("VozAutor", fields: [autorId], references: [id])
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+
+  votos       Voto[]
+  comentarios Comentario[]
+
+  @@index([condominioId, tipo, status])
+  @@index([condominioId, visivelPortal, destaqueSemana])
+}
+
+model Voto {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User       @relation(fields: [userId], references: [id])
+  vozId  String
+  voz    VozMorador @relation(fields: [vozId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vozId])
+}
+
+model Comentario {
+  id        String   @id @default(uuid())
+  texto     String
+  createdAt DateTime @default(now())
+
+  autorId String
+  autor   User       @relation(fields: [autorId], references: [id])
+  vozId   String
+  voz     VozMorador @relation(fields: [vozId], references: [id], onDelete: Cascade)
+}
+
+model Inventario {
+  id            String    @id @default(uuid())
+  nome          String
+  codigo        String
+  categoria     String
+  descricao     String?
+  fabricante    String?
+  modelo        String?
+  dataAquisicao DateTime?
+  garantiaAte   DateTime?
+  status        String    @default("Operacional")
+  fotos         String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  condominioId String
+  condominio   Condominio   @relation(fields: [condominioId], references: [id])
+  manutencoes  Manutencao[]
+}
+
+model Banner {
+  id        String   @id @default(uuid())
+  titulo    String
+  imagem    String
+  link      String?
+  ordem     Int      @default(1)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model Denuncia {
+  id             String            @id @default(uuid())
+  codigo         String            @unique
+  categoria      DenunciaCategoria
+  descricao      String
+  local          String?
+  dataOcorrido   DateTime?
+  anonimo        Boolean           @default(true)
+  contato        String?
+  anexos         String[]          @default([])
+  status         DenunciaStatus    @default(RECEBIDO)
+  prioridade     Prioridade        @default(MEDIA)
+  risco          String?
+  acoesSugeridas String?
+  lida           Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+
+  condominioId   String
+  condominio     Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model Comunicado {
+  id        String   @id @default(uuid())
+  titulo    String
+  conteudo  String
+  emoji     String?
+  fixado    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model Notificacao {
+  id        String          @id @default(uuid())
+  tipo      NotificacaoTipo
+  titulo    String
+  mensagem  String
+  lida      Boolean         @default(false)
+  link      String?
+  createdAt DateTime        @default(now())
+
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model WhatsAppLog {
+  id           String         @id @default(uuid())
+  destinatario String
+  mensagem     String
+  status       WhatsAppStatus @default(PENDENTE)
+  erro         String?
+  enviadoEm    DateTime?
+  createdAt    DateTime       @default(now())
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model ConfigWhatsApp {
+  id                      String   @id @default(uuid())
+  apiUrl                  String   @default("https://api.z-api.io")
+  apiKey                  String   @default("")
+  instanceId              String   @default("")
+  ativo                   Boolean  @default(false)
+  notifChamadoAberto      Boolean  @default(true)
+  notifChamadoAtualizado  Boolean  @default(true)
+  notifChamadoConcluido   Boolean  @default(true)
+  notifManutencaoVencendo Boolean  @default(true)
+  notifComunicados        Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  condominioId String     @unique
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model Taxa {
+  id          String     @id @default(uuid())
+  descricao   String
+  valor       Float
+  vencimento  DateTime
+  status      TaxaStatus @default(PENDENTE)
+  mes         Int
+  ano         Int
+  comprovante String?
+  pagamentoEm DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  moradorId    String
+  morador      User       @relation("TaxaMorador", fields: [moradorId], references: [id])
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model ContaSindico {
+  id             String                 @id @default(uuid())
+  descricao      String
+  categoria      ContaSindicoCategoria  @default(OUTRO)
+  status         ContaSindicoStatus     @default(A_PAGAR)
+  fornecedor     String?
+  documento      String?
+  competenciaMes Int?
+  competenciaAno Int?
+  valor          Float
+  vencimento     DateTime
+  pagamentoEm    DateTime?
+  recorrente     Boolean                @default(false)
+  observacoes    String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+}
+
+model EspacoComum {
+  id         String   @id @default(uuid())
+  nome       String
+  descricao  String?
+  capacidade Int?
+  regras     String?
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id])
+  reservas     Reserva[]
+}
+
+model Reserva {
+  id         String        @id @default(uuid())
+  data       DateTime
+  horaInicio String
+  horaFim    String
+  status     ReservaStatus @default(AGUARDANDO)
+  observacao String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  moradorId    String
+  morador      User        @relation("ReservaMorador", fields: [moradorId], references: [id])
+  espacoId     String
+  espaco       EspacoComum @relation(fields: [espacoId], references: [id])
+  condominioId String
+  condominio   Condominio  @relation(fields: [condominioId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

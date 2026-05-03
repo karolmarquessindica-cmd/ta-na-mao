@@ -1,0 +1,14 @@
+[2026-04-28T10:26:47.329Z] [532ccd95-44a9-451e-8668-f86f43769855] Error: PrismaClientKnownRequestError: 
+Invalid `prisma.condominioAcesso.upsert()` invocation:
+
+
+The table `public.CondominioAcesso` does not exist in the current database.
+    at $n.handleRequestError (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\PC\Downloads\tanamao\tanamaao-v2\backend\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async file:///C:/Users/PC/Downloads/tanamao/tanamaao-v2/backend/src/routes/auth.js:29:7 {
+  code: 'P2021',
+  clientVersion: '5.22.0',
+  meta: { modelName: 'CondominioAcesso', table: 'public.CondominioAcesso' }
+}

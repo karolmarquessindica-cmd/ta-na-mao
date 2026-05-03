@@ -1,0 +1,628 @@
+
+> tanamaao-backend@2.0.0 dev
+> nodemon src/server.js
+
+[33m[nodemon] 3.1.14[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "public"."Notificacao"."id", "public"."Notificacao"."tipo"::text, "public"."Notificacao"."titulo", "public"."Notificacao"."mensagem", "public"."Notificacao"."lida", "public"."Notificacao"."link", "public"."Notificacao"."createdAt", "public"."Notificacao"."userId", "public"."Notificacao"."condominioId" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 ORDER BY "public"."Notificacao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE ("public"."Notificacao"."userId" = $1 AND "public"."Notificacao"."lida" = $2) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE ("public"."Notificacao"."userId" = $1 AND "public"."Notificacao"."lida" = $2) OFFSET $3) AS "sub"
+prisma:query SELECT "public"."Notificacao"."id", "public"."Notificacao"."tipo"::text, "public"."Notificacao"."titulo", "public"."Notificacao"."mensagem", "public"."Notificacao"."lida", "public"."Notificacao"."link", "public"."Notificacao"."createdAt", "public"."Notificacao"."userId", "public"."Notificacao"."condominioId" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 ORDER BY "public"."Notificacao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."Condominio"."id", "public"."Condominio"."nome", "public"."Condominio"."endereco", "public"."Condominio"."cnpj", "public"."Condominio"."telefone", "public"."Condominio"."email", "public"."Condominio"."logo", "public"."Condominio"."ativo", "public"."Condominio"."cidade", "public"."Condominio"."estado", "public"."Condominio"."cep", "public"."Condominio"."tipoEdificacao"::text, "public"."Condominio"."blocos", "public"."Condominio"."unidades", "public"."Condominio"."pavimentos", "public"."Condominio"."mandatoInicio", "public"."Condominio"."mandatoFim", "public"."Condominio"."seguroPossui", "public"."Condominio"."seguroSeguradora", "public"."Condominio"."seguroApolice", "public"."Condominio"."seguroInicio", "public"."Condominio"."seguroVencimento", "public"."Condominio"."seguroDocumento", "public"."Condominio"."portalConfig", "public"."Condominio"."createdAt", "public"."Condominio"."updatedAt", COALESCE("aggr_selection_0_User"."_aggr_count_users", 0) AS "_aggr_count_users", COALESCE("aggr_selection_1_Manutencao"."_aggr_count_manutencoes", 0) AS "_aggr_count_manutencoes", COALESCE("aggr_selection_2_Documento"."_aggr_count_documentos", 0) AS "_aggr_count_documentos", COALESCE("aggr_selection_3_Banner"."_aggr_count_banners", 0) AS "_aggr_count_banners", COALESCE("aggr_selection_4_PlanoManutencaoItem"."_aggr_count_planoManutencao", 0) AS "_aggr_count_planoManutencao" FROM "public"."Condominio" LEFT JOIN (SELECT "public"."User"."condominioId", COUNT(*) AS "_aggr_count_users" FROM "public"."User" WHERE 1=1 GROUP BY "public"."User"."condominioId") AS "aggr_selection_0_User" ON ("public"."Condominio"."id" = "aggr_selection_0_User"."condominioId") LEFT JOIN (SELECT "public"."Manutencao"."condominioId", COUNT(*) AS "_aggr_count_manutencoes" FROM "public"."Manutencao" WHERE 1=1 GROUP BY "public"."Manutencao"."condominioId") AS "aggr_selection_1_Manutencao" ON ("public"."Condominio"."id" = "aggr_selection_1_Manutencao"."condominioId") LEFT JOIN (SELECT "public"."Documento"."condominioId", COUNT(*) AS "_aggr_count_documentos" FROM "public"."Documento" WHERE 1=1 GROUP BY "public"."Documento"."condominioId") AS "aggr_selection_2_Documento" ON ("public"."Condominio"."id" = "aggr_selection_2_Documento"."condominioId") LEFT JOIN (SELECT "public"."Banner"."condominioId", COUNT(*) AS "_aggr_count_banners" FROM "public"."Banner" WHERE 1=1 GROUP BY "public"."Banner"."condominioId") AS "aggr_selection_3_Banner" ON ("public"."Condominio"."id" = "aggr_selection_3_Banner"."condominioId") LEFT JOIN (SELECT "public"."PlanoManutencaoItem"."condominioId", COUNT(*) AS "_aggr_count_planoManutencao" FROM "public"."PlanoManutencaoItem" WHERE 1=1 GROUP BY "public"."PlanoManutencaoItem"."condominioId") AS "aggr_selection_4_PlanoManutencaoItem" ON ("public"."Condominio"."id" = "aggr_selection_4_PlanoManutencaoItem"."condominioId") WHERE (("public"."Condominio"."id") IN (SELECT "t1"."condominioId" FROM "public"."User" AS "t1" WHERE ("t1"."id" = $1 AND "t1"."condominioId" IS NOT NULL)) OR ("public"."Condominio"."id") IN (SELECT "t2"."condominioId" FROM "public"."CondominioAcesso" AS "t2" WHERE ("t2"."userId" = $2 AND "t2"."condominioId" IS NOT NULL))) ORDER BY "public"."Condominio"."createdAt" DESC OFFSET $3
+prisma:query SELECT "public"."Condominio"."id", "public"."Condominio"."nome", "public"."Condominio"."endereco", "public"."Condominio"."cnpj", "public"."Condominio"."telefone", "public"."Condominio"."email", "public"."Condominio"."logo", "public"."Condominio"."ativo", "public"."Condominio"."cidade", "public"."Condominio"."estado", "public"."Condominio"."cep", "public"."Condominio"."tipoEdificacao"::text, "public"."Condominio"."blocos", "public"."Condominio"."unidades", "public"."Condominio"."pavimentos", "public"."Condominio"."mandatoInicio", "public"."Condominio"."mandatoFim", "public"."Condominio"."seguroPossui", "public"."Condominio"."seguroSeguradora", "public"."Condominio"."seguroApolice", "public"."Condominio"."seguroInicio", "public"."Condominio"."seguroVencimento", "public"."Condominio"."seguroDocumento", "public"."Condominio"."portalConfig", "public"."Condominio"."createdAt", "public"."Condominio"."updatedAt", COALESCE("aggr_selection_0_User"."_aggr_count_users", 0) AS "_aggr_count_users", COALESCE("aggr_selection_1_Manutencao"."_aggr_count_manutencoes", 0) AS "_aggr_count_manutencoes", COALESCE("aggr_selection_2_Documento"."_aggr_count_documentos", 0) AS "_aggr_count_documentos", COALESCE("aggr_selection_3_Banner"."_aggr_count_banners", 0) AS "_aggr_count_banners", COALESCE("aggr_selection_4_PlanoManutencaoItem"."_aggr_count_planoManutencao", 0) AS "_aggr_count_planoManutencao" FROM "public"."Condominio" LEFT JOIN (SELECT "public"."User"."condominioId", COUNT(*) AS "_aggr_count_users" FROM "public"."User" WHERE 1=1 GROUP BY "public"."User"."condominioId") AS "aggr_selection_0_User" ON ("public"."Condominio"."id" = "aggr_selection_0_User"."condominioId") LEFT JOIN (SELECT "public"."Manutencao"."condominioId", COUNT(*) AS "_aggr_count_manutencoes" FROM "public"."Manutencao" WHERE 1=1 GROUP BY "public"."Manutencao"."condominioId") AS "aggr_selection_1_Manutencao" ON ("public"."Condominio"."id" = "aggr_selection_1_Manutencao"."condominioId") LEFT JOIN (SELECT "public"."Documento"."condominioId", COUNT(*) AS "_aggr_count_documentos" FROM "public"."Documento" WHERE 1=1 GROUP BY "public"."Documento"."condominioId") AS "aggr_selection_2_Documento" ON ("public"."Condominio"."id" = "aggr_selection_2_Documento"."condominioId") LEFT JOIN (SELECT "public"."Banner"."condominioId", COUNT(*) AS "_aggr_count_banners" FROM "public"."Banner" WHERE 1=1 GROUP BY "public"."Banner"."condominioId") AS "aggr_selection_3_Banner" ON ("public"."Condominio"."id" = "aggr_selection_3_Banner"."condominioId") LEFT JOIN (SELECT "public"."PlanoManutencaoItem"."condominioId", COUNT(*) AS "_aggr_count_planoManutencao" FROM "public"."PlanoManutencaoItem" WHERE 1=1 GROUP BY "public"."PlanoManutencaoItem"."condominioId") AS "aggr_selection_4_PlanoManutencaoItem" ON ("public"."Condominio"."id" = "aggr_selection_4_PlanoManutencaoItem"."condominioId") WHERE (("public"."Condominio"."id") IN (SELECT "t1"."condominioId" FROM "public"."User" AS "t1" WHERE ("t1"."id" = $1 AND "t1"."condominioId" IS NOT NULL)) OR ("public"."Condominio"."id") IN (SELECT "t2"."condominioId" FROM "public"."CondominioAcesso" AS "t2" WHERE ("t2"."userId" = $2 AND "t2"."condominioId" IS NOT NULL))) ORDER BY "public"."Condominio"."createdAt" DESC OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE "public"."Chamado"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query 
+        SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*)::int as total
+        FROM "Manutencao"
+        WHERE "condominioId" = $1
+          AND "createdAt" > NOW() - INTERVAL '6 months'
+        GROUP BY mes ORDER BY mes
+      
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" = CAST($2::text AS "public"."ManutencaoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE ("public"."Chamado"."condominioId" = $1 AND "public"."Chamado"."status" = CAST($2::text AS "public"."ChamadoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Denuncia"."id" FROM "public"."Denuncia" WHERE ("public"."Denuncia"."condominioId" = $1 AND "public"."Denuncia"."lida" = $2) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" = CAST($2::text AS "public"."ManutencaoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."User"."id" FROM "public"."User" WHERE ("public"."User"."condominioId" = $1 AND "public"."User"."role" = CAST($2::text AS "public"."Role") AND "public"."User"."ativo" = $3) OFFSET $4) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Documento"."id" FROM "public"."Documento" WHERE "public"."Documento"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query 
+        SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*)::int as total
+        FROM "Chamado"
+        WHERE "condominioId" = $1
+          AND "createdAt" > NOW() - INTERVAL '6 months'
+        GROUP BY mes ORDER BY mes
+      
+prisma:query SELECT "public"."Manutencao"."id", "public"."Manutencao"."titulo", "public"."Manutencao"."dataVencimento", "public"."Manutencao"."prioridade"::text FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" <> CAST($2::text AS "public"."ManutencaoStatus") AND "public"."Manutencao"."dataVencimento" >= $3 AND "public"."Manutencao"."dataVencimento" <= $4) OFFSET $5
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" = CAST($2::text AS "public"."ManutencaoStatus")) OFFSET $3) AS "sub"
+prisma:query 
+        SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*)::int as total
+        FROM "Chamado"
+        WHERE "condominioId" = $1
+          AND "createdAt" > NOW() - INTERVAL '6 months'
+        GROUP BY mes ORDER BY mes
+      
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Denuncia"."id" FROM "public"."Denuncia" WHERE ("public"."Denuncia"."condominioId" = $1 AND "public"."Denuncia"."lida" = $2) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query 
+        SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*)::int as total
+        FROM "Manutencao"
+        WHERE "condominioId" = $1
+          AND "createdAt" > NOW() - INTERVAL '6 months'
+        GROUP BY mes ORDER BY mes
+      
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" = CAST($2::text AS "public"."ManutencaoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE ("public"."Chamado"."condominioId" = $1 AND "public"."Chamado"."status" = CAST($2::text AS "public"."ChamadoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE "public"."Chamado"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Documento"."id" FROM "public"."Documento" WHERE "public"."Documento"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."User"."id" FROM "public"."User" WHERE ("public"."User"."condominioId" = $1 AND "public"."User"."role" = CAST($2::text AS "public"."Role") AND "public"."User"."ativo" = $3) OFFSET $4) AS "sub"
+prisma:query SELECT "public"."Manutencao"."id", "public"."Manutencao"."titulo", "public"."Manutencao"."dataVencimento", "public"."Manutencao"."prioridade"::text FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" <> CAST($2::text AS "public"."ManutencaoStatus") AND "public"."Manutencao"."dataVencimento" >= $3 AND "public"."Manutencao"."dataVencimento" <= $4) OFFSET $5
+prisma:query SELECT "public"."Condominio"."id", "public"."Condominio"."nome", "public"."Condominio"."endereco", "public"."Condominio"."cnpj", "public"."Condominio"."telefone", "public"."Condominio"."email", "public"."Condominio"."logo", "public"."Condominio"."ativo", "public"."Condominio"."cidade", "public"."Condominio"."estado", "public"."Condominio"."cep", "public"."Condominio"."tipoEdificacao"::text, "public"."Condominio"."blocos", "public"."Condominio"."unidades", "public"."Condominio"."pavimentos", "public"."Condominio"."mandatoInicio", "public"."Condominio"."mandatoFim", "public"."Condominio"."seguroPossui", "public"."Condominio"."seguroSeguradora", "public"."Condominio"."seguroApolice", "public"."Condominio"."seguroInicio", "public"."Condominio"."seguroVencimento", "public"."Condominio"."seguroDocumento", "public"."Condominio"."portalConfig", "public"."Condominio"."createdAt", "public"."Condominio"."updatedAt", COALESCE("aggr_selection_0_User"."_aggr_count_users", 0) AS "_aggr_count_users", COALESCE("aggr_selection_1_Manutencao"."_aggr_count_manutencoes", 0) AS "_aggr_count_manutencoes", COALESCE("aggr_selection_2_Documento"."_aggr_count_documentos", 0) AS "_aggr_count_documentos", COALESCE("aggr_selection_3_Banner"."_aggr_count_banners", 0) AS "_aggr_count_banners", COALESCE("aggr_selection_4_PlanoManutencaoItem"."_aggr_count_planoManutencao", 0) AS "_aggr_count_planoManutencao" FROM "public"."Condominio" LEFT JOIN (SELECT "public"."User"."condominioId", COUNT(*) AS "_aggr_count_users" FROM "public"."User" WHERE 1=1 GROUP BY "public"."User"."condominioId") AS "aggr_selection_0_User" ON ("public"."Condominio"."id" = "aggr_selection_0_User"."condominioId") LEFT JOIN (SELECT "public"."Manutencao"."condominioId", COUNT(*) AS "_aggr_count_manutencoes" FROM "public"."Manutencao" WHERE 1=1 GROUP BY "public"."Manutencao"."condominioId") AS "aggr_selection_1_Manutencao" ON ("public"."Condominio"."id" = "aggr_selection_1_Manutencao"."condominioId") LEFT JOIN (SELECT "public"."Documento"."condominioId", COUNT(*) AS "_aggr_count_documentos" FROM "public"."Documento" WHERE 1=1 GROUP BY "public"."Documento"."condominioId") AS "aggr_selection_2_Documento" ON ("public"."Condominio"."id" = "aggr_selection_2_Documento"."condominioId") LEFT JOIN (SELECT "public"."Banner"."condominioId", COUNT(*) AS "_aggr_count_banners" FROM "public"."Banner" WHERE 1=1 GROUP BY "public"."Banner"."condominioId") AS "aggr_selection_3_Banner" ON ("public"."Condominio"."id" = "aggr_selection_3_Banner"."condominioId") LEFT JOIN (SELECT "public"."PlanoManutencaoItem"."condominioId", COUNT(*) AS "_aggr_count_planoManutencao" FROM "public"."PlanoManutencaoItem" WHERE 1=1 GROUP BY "public"."PlanoManutencaoItem"."condominioId") AS "aggr_selection_4_PlanoManutencaoItem" ON ("public"."Condominio"."id" = "aggr_selection_4_PlanoManutencaoItem"."condominioId") WHERE (("public"."Condominio"."id") IN (SELECT "t1"."condominioId" FROM "public"."User" AS "t1" WHERE ("t1"."id" = $1 AND "t1"."condominioId" IS NOT NULL)) OR ("public"."Condominio"."id") IN (SELECT "t2"."condominioId" FROM "public"."CondominioAcesso" AS "t2" WHERE ("t2"."userId" = $2 AND "t2"."condominioId" IS NOT NULL))) ORDER BY "public"."Condominio"."createdAt" DESC OFFSET $3
+prisma:query SELECT "public"."Condominio"."id", "public"."Condominio"."nome", "public"."Condominio"."endereco", "public"."Condominio"."cnpj", "public"."Condominio"."telefone", "public"."Condominio"."email", "public"."Condominio"."logo", "public"."Condominio"."ativo", "public"."Condominio"."cidade", "public"."Condominio"."estado", "public"."Condominio"."cep", "public"."Condominio"."tipoEdificacao"::text, "public"."Condominio"."blocos", "public"."Condominio"."unidades", "public"."Condominio"."pavimentos", "public"."Condominio"."mandatoInicio", "public"."Condominio"."mandatoFim", "public"."Condominio"."seguroPossui", "public"."Condominio"."seguroSeguradora", "public"."Condominio"."seguroApolice", "public"."Condominio"."seguroInicio", "public"."Condominio"."seguroVencimento", "public"."Condominio"."seguroDocumento", "public"."Condominio"."portalConfig", "public"."Condominio"."createdAt", "public"."Condominio"."updatedAt", COALESCE("aggr_selection_0_User"."_aggr_count_users", 0) AS "_aggr_count_users", COALESCE("aggr_selection_1_Manutencao"."_aggr_count_manutencoes", 0) AS "_aggr_count_manutencoes", COALESCE("aggr_selection_2_Documento"."_aggr_count_documentos", 0) AS "_aggr_count_documentos", COALESCE("aggr_selection_3_Banner"."_aggr_count_banners", 0) AS "_aggr_count_banners", COALESCE("aggr_selection_4_PlanoManutencaoItem"."_aggr_count_planoManutencao", 0) AS "_aggr_count_planoManutencao" FROM "public"."Condominio" LEFT JOIN (SELECT "public"."User"."condominioId", COUNT(*) AS "_aggr_count_users" FROM "public"."User" WHERE 1=1 GROUP BY "public"."User"."condominioId") AS "aggr_selection_0_User" ON ("public"."Condominio"."id" = "aggr_selection_0_User"."condominioId") LEFT JOIN (SELECT "public"."Manutencao"."condominioId", COUNT(*) AS "_aggr_count_manutencoes" FROM "public"."Manutencao" WHERE 1=1 GROUP BY "public"."Manutencao"."condominioId") AS "aggr_selection_1_Manutencao" ON ("public"."Condominio"."id" = "aggr_selection_1_Manutencao"."condominioId") LEFT JOIN (SELECT "public"."Documento"."condominioId", COUNT(*) AS "_aggr_count_documentos" FROM "public"."Documento" WHERE 1=1 GROUP BY "public"."Documento"."condominioId") AS "aggr_selection_2_Documento" ON ("public"."Condominio"."id" = "aggr_selection_2_Documento"."condominioId") LEFT JOIN (SELECT "public"."Banner"."condominioId", COUNT(*) AS "_aggr_count_banners" FROM "public"."Banner" WHERE 1=1 GROUP BY "public"."Banner"."condominioId") AS "aggr_selection_3_Banner" ON ("public"."Condominio"."id" = "aggr_selection_3_Banner"."condominioId") LEFT JOIN (SELECT "public"."PlanoManutencaoItem"."condominioId", COUNT(*) AS "_aggr_count_planoManutencao" FROM "public"."PlanoManutencaoItem" WHERE 1=1 GROUP BY "public"."PlanoManutencaoItem"."condominioId") AS "aggr_selection_4_PlanoManutencaoItem" ON ("public"."Condominio"."id" = "aggr_selection_4_PlanoManutencaoItem"."condominioId") WHERE (("public"."Condominio"."id") IN (SELECT "t1"."condominioId" FROM "public"."User" AS "t1" WHERE ("t1"."id" = $1 AND "t1"."condominioId" IS NOT NULL)) OR ("public"."Condominio"."id") IN (SELECT "t2"."condominioId" FROM "public"."CondominioAcesso" AS "t2" WHERE ("t2"."userId" = $2 AND "t2"."condominioId" IS NOT NULL))) ORDER BY "public"."Condominio"."createdAt" DESC OFFSET $3
+prisma:query SELECT "public"."Manutencao"."id", "public"."Manutencao"."titulo", "public"."Manutencao"."descricao", "public"."Manutencao"."tipo"::text, "public"."Manutencao"."status"::text, "public"."Manutencao"."prioridade"::text, "public"."Manutencao"."responsavel", "public"."Manutencao"."empresa", "public"."Manutencao"."custo", "public"."Manutencao"."dataVencimento", "public"."Manutencao"."dataConclusao", "public"."Manutencao"."fotos", "public"."Manutencao"."checklist", "public"."Manutencao"."observacoes", "public"."Manutencao"."createdAt", "public"."Manutencao"."updatedAt", "public"."Manutencao"."condominioId", "public"."Manutencao"."inventarioId" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 ORDER BY "public"."Manutencao"."status" ASC, "public"."Manutencao"."dataVencimento" ASC, "public"."Manutencao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "public"."Inventario"."id", "public"."Inventario"."nome", "public"."Inventario"."codigo" FROM "public"."Inventario" WHERE "public"."Inventario"."id" IN ($1,$2,$3,$4,$5) OFFSET $6
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "public"."Manutencao"."id", "public"."Manutencao"."titulo", "public"."Manutencao"."descricao", "public"."Manutencao"."tipo"::text, "public"."Manutencao"."status"::text, "public"."Manutencao"."prioridade"::text, "public"."Manutencao"."responsavel", "public"."Manutencao"."empresa", "public"."Manutencao"."custo", "public"."Manutencao"."dataVencimento", "public"."Manutencao"."dataConclusao", "public"."Manutencao"."fotos", "public"."Manutencao"."checklist", "public"."Manutencao"."observacoes", "public"."Manutencao"."createdAt", "public"."Manutencao"."updatedAt", "public"."Manutencao"."condominioId", "public"."Manutencao"."inventarioId" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 ORDER BY "public"."Manutencao"."status" ASC, "public"."Manutencao"."dataVencimento" ASC, "public"."Manutencao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."Inventario"."id", "public"."Inventario"."nome", "public"."Inventario"."codigo" FROM "public"."Inventario" WHERE "public"."Inventario"."id" IN ($1,$2,$3,$4,$5) OFFSET $6
+prisma:query SELECT "public"."Chamado"."id", "public"."Chamado"."titulo", "public"."Chamado"."descricao", "public"."Chamado"."categoria"::text, "public"."Chamado"."status"::text, "public"."Chamado"."prioridade"::text, "public"."Chamado"."fotos", "public"."Chamado"."resposta", "public"."Chamado"."dataConclusao", "public"."Chamado"."createdAt", "public"."Chamado"."updatedAt", "public"."Chamado"."moradorId", "public"."Chamado"."responsavelId", "public"."Chamado"."condominioId" FROM "public"."Chamado" WHERE "public"."Chamado"."condominioId" = $1 ORDER BY "public"."Chamado"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE "public"."Chamado"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "public"."User"."id", "public"."User"."nome", "public"."User"."unidade", "public"."User"."bloco" FROM "public"."User" WHERE "public"."User"."id" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."User"."id", "public"."User"."nome" FROM "public"."User" WHERE "public"."User"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."HistoricoChamado"."id", "public"."HistoricoChamado"."acao", "public"."HistoricoChamado"."nota", "public"."HistoricoChamado"."createdAt", "public"."HistoricoChamado"."chamadoId" FROM "public"."HistoricoChamado" WHERE "public"."HistoricoChamado"."chamadoId" IN ($1,$2,$3,$4) ORDER BY "public"."HistoricoChamado"."createdAt" ASC OFFSET $5
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE "public"."Chamado"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "public"."Chamado"."id", "public"."Chamado"."titulo", "public"."Chamado"."descricao", "public"."Chamado"."categoria"::text, "public"."Chamado"."status"::text, "public"."Chamado"."prioridade"::text, "public"."Chamado"."fotos", "public"."Chamado"."resposta", "public"."Chamado"."dataConclusao", "public"."Chamado"."createdAt", "public"."Chamado"."updatedAt", "public"."Chamado"."moradorId", "public"."Chamado"."responsavelId", "public"."Chamado"."condominioId" FROM "public"."Chamado" WHERE "public"."Chamado"."condominioId" = $1 ORDER BY "public"."Chamado"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."User"."id", "public"."User"."nome", "public"."User"."unidade", "public"."User"."bloco" FROM "public"."User" WHERE "public"."User"."id" IN ($1,$2,$3,$4) OFFSET $5
+prisma:query SELECT "public"."User"."id", "public"."User"."nome" FROM "public"."User" WHERE "public"."User"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."HistoricoChamado"."id", "public"."HistoricoChamado"."acao", "public"."HistoricoChamado"."nota", "public"."HistoricoChamado"."createdAt", "public"."HistoricoChamado"."chamadoId" FROM "public"."HistoricoChamado" WHERE "public"."HistoricoChamado"."chamadoId" IN ($1,$2,$3,$4) ORDER BY "public"."HistoricoChamado"."createdAt" ASC OFFSET $5
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "public"."Manutencao"."id", "public"."Manutencao"."titulo", "public"."Manutencao"."descricao", "public"."Manutencao"."tipo"::text, "public"."Manutencao"."status"::text, "public"."Manutencao"."prioridade"::text, "public"."Manutencao"."responsavel", "public"."Manutencao"."empresa", "public"."Manutencao"."custo", "public"."Manutencao"."dataVencimento", "public"."Manutencao"."dataConclusao", "public"."Manutencao"."fotos", "public"."Manutencao"."checklist", "public"."Manutencao"."observacoes", "public"."Manutencao"."createdAt", "public"."Manutencao"."updatedAt", "public"."Manutencao"."condominioId", "public"."Manutencao"."inventarioId" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 ORDER BY "public"."Manutencao"."status" ASC, "public"."Manutencao"."dataVencimento" ASC, "public"."Manutencao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."Inventario"."id", "public"."Inventario"."nome", "public"."Inventario"."codigo" FROM "public"."Inventario" WHERE "public"."Inventario"."id" IN ($1,$2,$3,$4,$5) OFFSET $6
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "public"."Manutencao"."id", "public"."Manutencao"."titulo", "public"."Manutencao"."descricao", "public"."Manutencao"."tipo"::text, "public"."Manutencao"."status"::text, "public"."Manutencao"."prioridade"::text, "public"."Manutencao"."responsavel", "public"."Manutencao"."empresa", "public"."Manutencao"."custo", "public"."Manutencao"."dataVencimento", "public"."Manutencao"."dataConclusao", "public"."Manutencao"."fotos", "public"."Manutencao"."checklist", "public"."Manutencao"."observacoes", "public"."Manutencao"."createdAt", "public"."Manutencao"."updatedAt", "public"."Manutencao"."condominioId", "public"."Manutencao"."inventarioId" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 ORDER BY "public"."Manutencao"."status" ASC, "public"."Manutencao"."dataVencimento" ASC, "public"."Manutencao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."Inventario"."id", "public"."Inventario"."nome", "public"."Inventario"."codigo" FROM "public"."Inventario" WHERE "public"."Inventario"."id" IN ($1,$2,$3,$4,$5) OFFSET $6
+prisma:query SELECT "public"."Condominio"."id", "public"."Condominio"."nome", "public"."Condominio"."endereco", "public"."Condominio"."cnpj", "public"."Condominio"."telefone", "public"."Condominio"."email", "public"."Condominio"."logo", "public"."Condominio"."ativo", "public"."Condominio"."cidade", "public"."Condominio"."estado", "public"."Condominio"."cep", "public"."Condominio"."tipoEdificacao"::text, "public"."Condominio"."blocos", "public"."Condominio"."unidades", "public"."Condominio"."pavimentos", "public"."Condominio"."mandatoInicio", "public"."Condominio"."mandatoFim", "public"."Condominio"."seguroPossui", "public"."Condominio"."seguroSeguradora", "public"."Condominio"."seguroApolice", "public"."Condominio"."seguroInicio", "public"."Condominio"."seguroVencimento", "public"."Condominio"."seguroDocumento", "public"."Condominio"."portalConfig", "public"."Condominio"."createdAt", "public"."Condominio"."updatedAt", COALESCE("aggr_selection_0_User"."_aggr_count_users", 0) AS "_aggr_count_users", COALESCE("aggr_selection_1_Manutencao"."_aggr_count_manutencoes", 0) AS "_aggr_count_manutencoes", COALESCE("aggr_selection_2_Documento"."_aggr_count_documentos", 0) AS "_aggr_count_documentos", COALESCE("aggr_selection_3_Banner"."_aggr_count_banners", 0) AS "_aggr_count_banners", COALESCE("aggr_selection_4_PlanoManutencaoItem"."_aggr_count_planoManutencao", 0) AS "_aggr_count_planoManutencao" FROM "public"."Condominio" LEFT JOIN (SELECT "public"."User"."condominioId", COUNT(*) AS "_aggr_count_users" FROM "public"."User" WHERE 1=1 GROUP BY "public"."User"."condominioId") AS "aggr_selection_0_User" ON ("public"."Condominio"."id" = "aggr_selection_0_User"."condominioId") LEFT JOIN (SELECT "public"."Manutencao"."condominioId", COUNT(*) AS "_aggr_count_manutencoes" FROM "public"."Manutencao" WHERE 1=1 GROUP BY "public"."Manutencao"."condominioId") AS "aggr_selection_1_Manutencao" ON ("public"."Condominio"."id" = "aggr_selection_1_Manutencao"."condominioId") LEFT JOIN (SELECT "public"."Documento"."condominioId", COUNT(*) AS "_aggr_count_documentos" FROM "public"."Documento" WHERE 1=1 GROUP BY "public"."Documento"."condominioId") AS "aggr_selection_2_Documento" ON ("public"."Condominio"."id" = "aggr_selection_2_Documento"."condominioId") LEFT JOIN (SELECT "public"."Banner"."condominioId", COUNT(*) AS "_aggr_count_banners" FROM "public"."Banner" WHERE 1=1 GROUP BY "public"."Banner"."condominioId") AS "aggr_selection_3_Banner" ON ("public"."Condominio"."id" = "aggr_selection_3_Banner"."condominioId") LEFT JOIN (SELECT "public"."PlanoManutencaoItem"."condominioId", COUNT(*) AS "_aggr_count_planoManutencao" FROM "public"."PlanoManutencaoItem" WHERE 1=1 GROUP BY "public"."PlanoManutencaoItem"."condominioId") AS "aggr_selection_4_PlanoManutencaoItem" ON ("public"."Condominio"."id" = "aggr_selection_4_PlanoManutencaoItem"."condominioId") WHERE (("public"."Condominio"."id") IN (SELECT "t1"."condominioId" FROM "public"."User" AS "t1" WHERE ("t1"."id" = $1 AND "t1"."condominioId" IS NOT NULL)) OR ("public"."Condominio"."id") IN (SELECT "t2"."condominioId" FROM "public"."CondominioAcesso" AS "t2" WHERE ("t2"."userId" = $2 AND "t2"."condominioId" IS NOT NULL))) ORDER BY "public"."Condominio"."createdAt" DESC OFFSET $3
+prisma:query SELECT "public"."Condominio"."id", "public"."Condominio"."nome", "public"."Condominio"."endereco", "public"."Condominio"."cnpj", "public"."Condominio"."telefone", "public"."Condominio"."email", "public"."Condominio"."logo", "public"."Condominio"."ativo", "public"."Condominio"."cidade", "public"."Condominio"."estado", "public"."Condominio"."cep", "public"."Condominio"."tipoEdificacao"::text, "public"."Condominio"."blocos", "public"."Condominio"."unidades", "public"."Condominio"."pavimentos", "public"."Condominio"."mandatoInicio", "public"."Condominio"."mandatoFim", "public"."Condominio"."seguroPossui", "public"."Condominio"."seguroSeguradora", "public"."Condominio"."seguroApolice", "public"."Condominio"."seguroInicio", "public"."Condominio"."seguroVencimento", "public"."Condominio"."seguroDocumento", "public"."Condominio"."portalConfig", "public"."Condominio"."createdAt", "public"."Condominio"."updatedAt", COALESCE("aggr_selection_0_User"."_aggr_count_users", 0) AS "_aggr_count_users", COALESCE("aggr_selection_1_Manutencao"."_aggr_count_manutencoes", 0) AS "_aggr_count_manutencoes", COALESCE("aggr_selection_2_Documento"."_aggr_count_documentos", 0) AS "_aggr_count_documentos", COALESCE("aggr_selection_3_Banner"."_aggr_count_banners", 0) AS "_aggr_count_banners", COALESCE("aggr_selection_4_PlanoManutencaoItem"."_aggr_count_planoManutencao", 0) AS "_aggr_count_planoManutencao" FROM "public"."Condominio" LEFT JOIN (SELECT "public"."User"."condominioId", COUNT(*) AS "_aggr_count_users" FROM "public"."User" WHERE 1=1 GROUP BY "public"."User"."condominioId") AS "aggr_selection_0_User" ON ("public"."Condominio"."id" = "aggr_selection_0_User"."condominioId") LEFT JOIN (SELECT "public"."Manutencao"."condominioId", COUNT(*) AS "_aggr_count_manutencoes" FROM "public"."Manutencao" WHERE 1=1 GROUP BY "public"."Manutencao"."condominioId") AS "aggr_selection_1_Manutencao" ON ("public"."Condominio"."id" = "aggr_selection_1_Manutencao"."condominioId") LEFT JOIN (SELECT "public"."Documento"."condominioId", COUNT(*) AS "_aggr_count_documentos" FROM "public"."Documento" WHERE 1=1 GROUP BY "public"."Documento"."condominioId") AS "aggr_selection_2_Documento" ON ("public"."Condominio"."id" = "aggr_selection_2_Documento"."condominioId") LEFT JOIN (SELECT "public"."Banner"."condominioId", COUNT(*) AS "_aggr_count_banners" FROM "public"."Banner" WHERE 1=1 GROUP BY "public"."Banner"."condominioId") AS "aggr_selection_3_Banner" ON ("public"."Condominio"."id" = "aggr_selection_3_Banner"."condominioId") LEFT JOIN (SELECT "public"."PlanoManutencaoItem"."condominioId", COUNT(*) AS "_aggr_count_planoManutencao" FROM "public"."PlanoManutencaoItem" WHERE 1=1 GROUP BY "public"."PlanoManutencaoItem"."condominioId") AS "aggr_selection_4_PlanoManutencaoItem" ON ("public"."Condominio"."id" = "aggr_selection_4_PlanoManutencaoItem"."condominioId") WHERE (("public"."Condominio"."id") IN (SELECT "t1"."condominioId" FROM "public"."User" AS "t1" WHERE ("t1"."id" = $1 AND "t1"."condominioId" IS NOT NULL)) OR ("public"."Condominio"."id") IN (SELECT "t2"."condominioId" FROM "public"."CondominioAcesso" AS "t2" WHERE ("t2"."userId" = $2 AND "t2"."condominioId" IS NOT NULL))) ORDER BY "public"."Condominio"."createdAt" DESC OFFSET $3
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" = CAST($2::text AS "public"."ManutencaoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" = CAST($2::text AS "public"."ManutencaoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE "public"."Chamado"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Denuncia"."id" FROM "public"."Denuncia" WHERE ("public"."Denuncia"."condominioId" = $1 AND "public"."Denuncia"."lida" = $2) OFFSET $3) AS "sub"
+prisma:query 
+        SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*)::int as total
+        FROM "Chamado"
+        WHERE "condominioId" = $1
+          AND "createdAt" > NOW() - INTERVAL '6 months'
+        GROUP BY mes ORDER BY mes
+      
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query 
+        SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*)::int as total
+        FROM "Manutencao"
+        WHERE "condominioId" = $1
+          AND "createdAt" > NOW() - INTERVAL '6 months'
+        GROUP BY mes ORDER BY mes
+      
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Documento"."id" FROM "public"."Documento" WHERE "public"."Documento"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE ("public"."Chamado"."condominioId" = $1 AND "public"."Chamado"."status" = CAST($2::text AS "public"."ChamadoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."User"."id" FROM "public"."User" WHERE ("public"."User"."condominioId" = $1 AND "public"."User"."role" = CAST($2::text AS "public"."Role") AND "public"."User"."ativo" = $3) OFFSET $4) AS "sub"
+prisma:query SELECT "public"."Manutencao"."id", "public"."Manutencao"."titulo", "public"."Manutencao"."dataVencimento", "public"."Manutencao"."prioridade"::text FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" <> CAST($2::text AS "public"."ManutencaoStatus") AND "public"."Manutencao"."dataVencimento" >= $3 AND "public"."Manutencao"."dataVencimento" <= $4) OFFSET $5
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" = CAST($2::text AS "public"."ManutencaoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE "public"."Manutencao"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE "public"."Chamado"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query 
+        SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*)::int as total
+        FROM "Chamado"
+        WHERE "condominioId" = $1
+          AND "createdAt" > NOW() - INTERVAL '6 months'
+        GROUP BY mes ORDER BY mes
+      
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Manutencao"."id" FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" = CAST($2::text AS "public"."ManutencaoStatus")) OFFSET $3) AS "sub"
+prisma:query 
+        SELECT DATE_TRUNC('month', "createdAt") as mes, COUNT(*)::int as total
+        FROM "Manutencao"
+        WHERE "condominioId" = $1
+          AND "createdAt" > NOW() - INTERVAL '6 months'
+        GROUP BY mes ORDER BY mes
+      
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Denuncia"."id" FROM "public"."Denuncia" WHERE ("public"."Denuncia"."condominioId" = $1 AND "public"."Denuncia"."lida" = $2) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Chamado"."id" FROM "public"."Chamado" WHERE ("public"."Chamado"."condominioId" = $1 AND "public"."Chamado"."status" = CAST($2::text AS "public"."ChamadoStatus")) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Documento"."id" FROM "public"."Documento" WHERE "public"."Documento"."condominioId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."User"."id" FROM "public"."User" WHERE ("public"."User"."condominioId" = $1 AND "public"."User"."role" = CAST($2::text AS "public"."Role") AND "public"."User"."ativo" = $3) OFFSET $4) AS "sub"
+prisma:query SELECT "public"."Manutencao"."id", "public"."Manutencao"."titulo", "public"."Manutencao"."dataVencimento", "public"."Manutencao"."prioridade"::text FROM "public"."Manutencao" WHERE ("public"."Manutencao"."condominioId" = $1 AND "public"."Manutencao"."status" <> CAST($2::text AS "public"."ManutencaoStatus") AND "public"."Manutencao"."dataVencimento" >= $3 AND "public"."Manutencao"."dataVencimento" <= $4) OFFSET $5
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT "public"."Notificacao"."id", "public"."Notificacao"."tipo"::text, "public"."Notificacao"."titulo", "public"."Notificacao"."mensagem", "public"."Notificacao"."lida", "public"."Notificacao"."link", "public"."Notificacao"."createdAt", "public"."Notificacao"."userId", "public"."Notificacao"."condominioId" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 ORDER BY "public"."Notificacao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE ("public"."Notificacao"."userId" = $1 AND "public"."Notificacao"."lida" = $2) OFFSET $3) AS "sub"
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+prisma:query SELECT "public"."Notificacao"."id", "public"."Notificacao"."tipo"::text, "public"."Notificacao"."titulo", "public"."Notificacao"."mensagem", "public"."Notificacao"."lida", "public"."Notificacao"."link", "public"."Notificacao"."createdAt", "public"."Notificacao"."userId", "public"."Notificacao"."condominioId" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 ORDER BY "public"."Notificacao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE ("public"."Notificacao"."userId" = $1 AND "public"."Notificacao"."lida" = $2) OFFSET $3) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 OFFSET $2) AS "sub"
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+prisma:query SELECT 1
+prisma:query SELECT "public"."Notificacao"."id", "public"."Notificacao"."tipo"::text, "public"."Notificacao"."titulo", "public"."Notificacao"."mensagem", "public"."Notificacao"."lida", "public"."Notificacao"."link", "public"."Notificacao"."createdAt", "public"."Notificacao"."userId", "public"."Notificacao"."condominioId" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 ORDER BY "public"."Notificacao"."createdAt" DESC LIMIT $2 OFFSET $3
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE "public"."Notificacao"."userId" = $1 OFFSET $2) AS "sub"
+prisma:query SELECT COUNT(*) FROM (SELECT "public"."Notificacao"."id" FROM "public"."Notificacao" WHERE ("public"."Notificacao"."userId" = $1 AND "public"."Notificacao"."lida" = $2) OFFSET $3) AS "sub"
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+
+🏢 Tá na Mão API v2.0 → http://localhost:3001
+[boot] Scheduler nativo iniciado sem Redis — 4 jobs via setInterval
+prisma:query BEGIN
+prisma:query UPDATE "public"."Taxa" SET "status" = CAST($1::text AS "public"."TaxaStatus"), "updatedAt" = $2 WHERE ("public"."Taxa"."status" = CAST($3::text AS "public"."TaxaStatus") AND "public"."Taxa"."vencimento" < $4)
+prisma:query COMMIT
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting due to changes...[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
