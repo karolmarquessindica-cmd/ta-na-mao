@@ -28,13 +28,6 @@ import { errorHandler, requestId }      from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
 
 const app = express()
-
-app.use(cors({
-  origin: "https://ta-na-mao-xeim.vercel.app",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}));
 const PORT = process.env.PORT || 3001
 
 function getRedisTarget() {
@@ -65,18 +58,48 @@ function canReachRedis(timeoutMs = 700) {
 // Segurança — headers HTTP
 app.use(helmet())
 
-// CORS — via ALLOWED_ORIGINS ou fallback FRONTEND_URL
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : [process.env.FRONTEND_URL || 'http://localhost:5173', 'http://127.0.0.1:5173']
+// CORS — permite produção, preview da Vercel e ambiente local
+const configuredOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : []
+
+const allowedOrigins = [
+  'https://ta-na-mao-xeim.vercel.app',
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  ...configuredOrigins,
+].filter(Boolean)
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true
+  if (allowedOrigins.includes(origin)) return true
+
+  try {
+    const { hostname, protocol } = new URL(origin)
+    if (protocol !== 'https:') return false
+
+    // Domínio oficial e previews gerados pela Vercel para este projeto
+    if (hostname === 'ta-na-mao-xeim.vercel.app') return true
+    if (hostname.startsWith('ta-na-mao-xeim-') && hostname.endsWith('.vercel.app')) return true
+  } catch {
+    return false
+  }
+
+  return false
+}
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true)
-    cb(new Error('CORS não permitido'))
+    if (isAllowedOrigin(origin)) return cb(null, true)
+    return cb(new Error(`CORS não permitido para origem: ${origin}`))
   },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }))
+
+app.options('*', cors())
 
 app.use(express.json({ limit: '20mb' }))
 app.use(express.urlencoded({ extended: true }))
