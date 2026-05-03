@@ -255,7 +255,7 @@ authRouter.post('/users', authenticate, requireRole('ADMIN', 'SINDICO'), async (
       })
 
       const frontendUrl = process.env.FRONTEND_URL || 'https://ta-na-mao-xeim.vercel.app'
-      conviteLink = `${frontendUrl.replace(/\/$/, '')}/definir-senha?token=${token}`
+      conviteLink = `${frontendUrl.replace(/\/$/, '')}/definir-senha.html?token=${token}`
     }
 
     const { senha: _, ...safe } = user
