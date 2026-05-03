@@ -59,7 +59,76 @@ function gerarPin() {
   return String(Math.floor(1000 + Math.random() * 9000))
 }
 
+async function registrarPonto({ req, res, next, condominioId, publico = false }) {
+  try {
+    await ensureFuncionarioTables()
+    const { funcionarioId, pin, tipo, latitude, longitude, distanciaMetros, statusLocalizacao, justificativa } = req.body
+    if (!funcionarioId || !tipo) return res.status(400).json({ error: 'Funcionário e tipo são obrigatórios', code: 'VALIDATION_ERROR' })
+
+    const rows = await prisma.$queryRawUnsafe(
+      `SELECT * FROM "Funcionario" WHERE "id"=$1 AND "condominioId"=$2 AND "status"='ATIVO' LIMIT 1`,
+      funcionarioId,
+      condominioId
+    )
+    const funcionario = rows?.[0]
+    if (!funcionario) return res.status(404).json({ error: 'Funcionário não encontrado', code: 'NOT_FOUND' })
+    if (!pin || pinClean(pin) !== String(funcionario.pin)) return res.status(403).json({ error: 'PIN inválido', code: 'INVALID_PIN' })
+
+    const id = crypto.randomUUID()
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "FuncionarioPonto" ("id","funcionarioId","condominioId","tipo","latitude","longitude","distanciaMetros","statusLocalizacao","ip","navegador","justificativa")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      id,
+      funcionarioId,
+      condominioId,
+      tipo,
+      latitude === undefined ? null : Number(latitude),
+      longitude === undefined ? null : Number(longitude),
+      distanciaMetros === undefined ? null : Number(distanciaMetros),
+      statusLocalizacao || null,
+      req.ip || null,
+      req.headers['user-agent'] || null,
+      justificativa || (publico ? 'Registro via QR Code' : null)
+    )
+
+    const ponto = await prisma.$queryRawUnsafe(`SELECT * FROM "FuncionarioPonto" WHERE "id"=$1 LIMIT 1`, id)
+    res.status(201).json(ponto?.[0])
+  } catch (e) { next(e) }
+}
+
+// Rotas públicas do portal via QR Code. Não dão acesso administrativo.
+funcionariosRouter.get('/portal/:condominioId', async (req, res, next) => {
+  try {
+    await ensureFuncionarioTables()
+    const condominio = await prisma.condominio.findUnique({
+      where: { id: req.params.condominioId },
+      select: { id: true, nome: true, logo: true }
+    })
+    if (!condominio) return res.status(404).json({ error: 'Condomínio não encontrado', code: 'CONDOMINIO_NOT_FOUND' })
+
+    const data = await prisma.$queryRawUnsafe(
+      `SELECT "id", "nome", "funcao" FROM "Funcionario" WHERE "condominioId"=$1 AND "status"='ATIVO' ORDER BY "nome" ASC`,
+      req.params.condominioId
+    )
+    res.json({ condominio, data, total: data.length })
+  } catch (e) { next(e) }
+})
+
+funcionariosRouter.post('/portal/:condominioId/ponto', async (req, res, next) => {
+  return registrarPonto({ req, res, next, condominioId: req.params.condominioId, publico: true })
+})
+
 funcionariosRouter.use(authenticate)
+
+funcionariosRouter.get('/qr-link', async (req, res) => {
+  const base = process.env.FRONTEND_URL || 'https://ta-na-mao-xeim.vercel.app'
+  const link = `${base.replace(/\/$/, '')}/?portalFuncionario=${req.user.condominioId}`
+  res.json({
+    condominioId: req.user.condominioId,
+    link,
+    qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(link)}`,
+  })
+})
 
 funcionariosRouter.get('/', async (req, res, next) => {
   try {
@@ -154,40 +223,7 @@ funcionariosRouter.delete('/:id', async (req, res, next) => {
 })
 
 funcionariosRouter.post('/ponto', async (req, res, next) => {
-  try {
-    await ensureFuncionarioTables()
-    const { funcionarioId, pin, tipo, latitude, longitude, distanciaMetros, statusLocalizacao, justificativa } = req.body
-    if (!funcionarioId || !tipo) return res.status(400).json({ error: 'Funcionário e tipo são obrigatórios', code: 'VALIDATION_ERROR' })
-
-    const rows = await prisma.$queryRawUnsafe(
-      `SELECT * FROM "Funcionario" WHERE "id"=$1 AND "condominioId"=$2 AND "status"='ATIVO' LIMIT 1`,
-      funcionarioId,
-      req.user.condominioId
-    )
-    const funcionario = rows?.[0]
-    if (!funcionario) return res.status(404).json({ error: 'Funcionário não encontrado', code: 'NOT_FOUND' })
-    if (pin && pinClean(pin) !== String(funcionario.pin)) return res.status(403).json({ error: 'PIN inválido', code: 'INVALID_PIN' })
-
-    const id = crypto.randomUUID()
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "FuncionarioPonto" ("id","funcionarioId","condominioId","tipo","latitude","longitude","distanciaMetros","statusLocalizacao","ip","navegador","justificativa")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      id,
-      funcionarioId,
-      req.user.condominioId,
-      tipo,
-      latitude === undefined ? null : Number(latitude),
-      longitude === undefined ? null : Number(longitude),
-      distanciaMetros === undefined ? null : Number(distanciaMetros),
-      statusLocalizacao || null,
-      req.ip || null,
-      req.headers['user-agent'] || null,
-      justificativa || null
-    )
-
-    const ponto = await prisma.$queryRawUnsafe(`SELECT * FROM "FuncionarioPonto" WHERE "id"=$1 LIMIT 1`, id)
-    res.status(201).json(ponto?.[0])
-  } catch (e) { next(e) }
+  return registrarPonto({ req, res, next, condominioId: req.user.condominioId })
 })
 
 funcionariosRouter.get('/pontos', async (req, res, next) => {
