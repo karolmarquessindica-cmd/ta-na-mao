@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { criarNotificacao } from './notificacao.js'
+import { enviarWhatsApp } from './whatsapp.js'
 
 export const portariaRouter = Router()
 
@@ -63,11 +64,32 @@ function normalizarPrioridade(prioridade) {
   return permitidas.includes(String(prioridade || '').toUpperCase()) ? String(prioridade).toUpperCase() : 'MEDIA'
 }
 
+function montarMensagemOcorrencia(ocorrencia, condominioNome = 'Condomínio') {
+  const local = [ocorrencia.bloco ? `Bloco ${ocorrencia.bloco}` : '', ocorrencia.unidade ? `Unidade ${ocorrencia.unidade}` : ''].filter(Boolean).join(' • ')
+  return [
+    '🚨 *Nova ocorrência registrada na portaria*',
+    '',
+    `🏢 *${condominioNome}*`,
+    `📌 *${ocorrencia.titulo}*`,
+    `🧾 Tipo: ${ocorrencia.tipo}`,
+    `⚠️ Prioridade: ${ocorrencia.prioridade}`,
+    local ? `📍 Local: ${local}` : null,
+    ocorrencia.contato ? `☎️ Contato: ${ocorrencia.contato}` : null,
+    '',
+    `Descrição: ${ocorrencia.descricao}`,
+    '',
+    'Acesse o painel para acompanhar e tratar a ocorrência.'
+  ].filter(Boolean).join('\n')
+}
+
 async function notificarAdmins({ condominioId, ocorrencia }) {
-  const admins = await prisma.user.findMany({
-    where: { condominioId, role: { in: ['ADMIN', 'SINDICO'] }, ativo: true },
-    select: { id: true },
-  })
+  const [admins, condominio] = await Promise.all([
+    prisma.user.findMany({
+      where: { condominioId, role: { in: ['ADMIN', 'SINDICO'] }, ativo: true },
+      select: { id: true, whatsapp: true, nome: true },
+    }),
+    prisma.condominio.findUnique({ where: { id: condominioId }, select: { nome: true } })
+  ])
 
   await Promise.allSettled(admins.map(admin => criarNotificacao({
     condominioId,
@@ -77,6 +99,18 @@ async function notificarAdmins({ condominioId, ocorrencia }) {
     mensagem: `${ocorrencia.tipo}: ${ocorrencia.titulo}`,
     link: '/funcionarios',
   })))
+
+  const mensagem = montarMensagemOcorrencia(ocorrencia, condominio?.nome)
+  await Promise.allSettled(
+    admins
+      .filter(admin => admin.whatsapp)
+      .map(admin => enviarWhatsApp({
+        condominioId,
+        numero: admin.whatsapp,
+        mensagem,
+        evento: 'PORTARIA_OCORRENCIA',
+      }))
+  )
 }
 
 portariaRouter.post('/ocorrencias/:token', async (req, res, next) => {
