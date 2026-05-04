@@ -48,6 +48,22 @@ export async function ensureFuncionarioTables() {
   `)
 
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FuncionarioPonto_condominioId_idx" ON "FuncionarioPonto" ("condominioId")`)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "FuncionarioQrSessao" (
+      "id" TEXT PRIMARY KEY,
+      "token" TEXT NOT NULL UNIQUE,
+      "condominioId" TEXT NOT NULL,
+      "tipo" TEXT NOT NULL DEFAULT 'PORTARIA_TEMPORARIO',
+      "expiraEm" TIMESTAMP(3) NOT NULL,
+      "usos" INTEGER NOT NULL DEFAULT 0,
+      "ativo" BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FuncionarioQrSessao_token_idx" ON "FuncionarioQrSessao" ("token")`)
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FuncionarioQrSessao_condominioId_idx" ON "FuncionarioQrSessao" ("condominioId")`)
   ensured = true
 }
 
@@ -59,11 +75,30 @@ function gerarPin() {
   return String(Math.floor(1000 + Math.random() * 9000))
 }
 
-async function registrarPonto({ req, res, next, condominioId, publico = false }) {
+async function validarTokenTemporario(token) {
+  if (!token) return null
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT * FROM "FuncionarioQrSessao" WHERE "token"=$1 AND "ativo"=true LIMIT 1`,
+    token
+  )
+  const sessao = rows?.[0]
+  if (!sessao) return null
+  if (new Date(sessao.expiraEm).getTime() < Date.now()) return null
+  return sessao
+}
+
+async function registrarPonto({ req, res, next, condominioId, publico = false, qrToken = null }) {
   try {
     await ensureFuncionarioTables()
     const { funcionarioId, pin, tipo, latitude, longitude, distanciaMetros, statusLocalizacao, justificativa } = req.body
     if (!funcionarioId || !tipo) return res.status(400).json({ error: 'Funcionário e tipo são obrigatórios', code: 'VALIDATION_ERROR' })
+
+    if (qrToken) {
+      const sessao = await validarTokenTemporario(qrToken)
+      if (!sessao || sessao.condominioId !== condominioId) {
+        return res.status(403).json({ error: 'QR Code expirado ou inválido', code: 'QR_EXPIRED' })
+      }
+    }
 
     const rows = await prisma.$queryRawUnsafe(
       `SELECT * FROM "Funcionario" WHERE "id"=$1 AND "condominioId"=$2 AND "status"='ATIVO' LIMIT 1`,
@@ -88,8 +123,15 @@ async function registrarPonto({ req, res, next, condominioId, publico = false })
       statusLocalizacao || null,
       req.ip || null,
       req.headers['user-agent'] || null,
-      justificativa || (publico ? 'Registro via QR Code' : null)
+      justificativa || (qrToken ? 'Registro via QR temporário da portaria' : publico ? 'Registro via QR Code fixo' : null)
     )
+
+    if (qrToken) {
+      await prisma.$executeRawUnsafe(
+        `UPDATE "FuncionarioQrSessao" SET "usos"="usos"+1 WHERE "token"=$1`,
+        qrToken
+      )
+    }
 
     const ponto = await prisma.$queryRawUnsafe(`SELECT * FROM "FuncionarioPonto" WHERE "id"=$1 LIMIT 1`, id)
     res.status(201).json(ponto?.[0])
@@ -110,12 +152,47 @@ funcionariosRouter.get('/portal/:condominioId', async (req, res, next) => {
       `SELECT "id", "nome", "funcao" FROM "Funcionario" WHERE "condominioId"=$1 AND "status"='ATIVO' ORDER BY "nome" ASC`,
       req.params.condominioId
     )
-    res.json({ condominio, data, total: data.length })
+    res.json({ condominio, data, total: data.length, modo: 'FIXO' })
   } catch (e) { next(e) }
 })
 
 funcionariosRouter.post('/portal/:condominioId/ponto', async (req, res, next) => {
   return registrarPonto({ req, res, next, condominioId: req.params.condominioId, publico: true })
+})
+
+funcionariosRouter.get('/portal-temporario/:token', async (req, res, next) => {
+  try {
+    await ensureFuncionarioTables()
+    const sessao = await validarTokenTemporario(req.params.token)
+    if (!sessao) return res.status(410).json({ error: 'QR Code expirado. Solicite novo QR na portaria.', code: 'QR_EXPIRED' })
+
+    const condominio = await prisma.condominio.findUnique({
+      where: { id: sessao.condominioId },
+      select: { id: true, nome: true, logo: true }
+    })
+    if (!condominio) return res.status(404).json({ error: 'Condomínio não encontrado', code: 'CONDOMINIO_NOT_FOUND' })
+
+    const data = await prisma.$queryRawUnsafe(
+      `SELECT "id", "nome", "funcao" FROM "Funcionario" WHERE "condominioId"=$1 AND "status"='ATIVO' ORDER BY "nome" ASC`,
+      sessao.condominioId
+    )
+
+    res.json({
+      condominio,
+      data,
+      total: data.length,
+      modo: 'TEMPORARIO',
+      token: req.params.token,
+      expiraEm: sessao.expiraEm,
+      segundosRestantes: Math.max(0, Math.floor((new Date(sessao.expiraEm).getTime() - Date.now()) / 1000)),
+    })
+  } catch (e) { next(e) }
+})
+
+funcionariosRouter.post('/portal-temporario/:token/ponto', async (req, res, next) => {
+  const sessao = await validarTokenTemporario(req.params.token)
+  if (!sessao) return res.status(410).json({ error: 'QR Code expirado. Solicite novo QR na portaria.', code: 'QR_EXPIRED' })
+  return registrarPonto({ req, res, next, condominioId: sessao.condominioId, publico: true, qrToken: req.params.token })
 })
 
 funcionariosRouter.use(authenticate)
@@ -124,10 +201,42 @@ funcionariosRouter.get('/qr-link', async (req, res) => {
   const base = process.env.FRONTEND_URL || 'https://ta-na-mao-xeim.vercel.app'
   const link = `${base.replace(/\/$/, '')}/?portalFuncionario=${req.user.condominioId}`
   res.json({
+    tipo: 'FIXO_IMPRESSO',
     condominioId: req.user.condominioId,
     link,
     qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(link)}`,
   })
+})
+
+funcionariosRouter.post('/qr-temporario', async (req, res, next) => {
+  try {
+    await ensureFuncionarioTables()
+    const minutos = Number(req.body?.minutos || 4)
+    const validadeMinutos = Math.min(Math.max(minutos, 1), 15)
+    const token = crypto.randomBytes(24).toString('base64url')
+    const expiraEm = new Date(Date.now() + validadeMinutos * 60 * 1000)
+
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "FuncionarioQrSessao" ("id", "token", "condominioId", "tipo", "expiraEm") VALUES ($1,$2,$3,$4,$5)`,
+      crypto.randomUUID(),
+      token,
+      req.user.condominioId,
+      'PORTARIA_TEMPORARIO',
+      expiraEm
+    )
+
+    const base = process.env.FRONTEND_URL || 'https://ta-na-mao-xeim.vercel.app'
+    const link = `${base.replace(/\/$/, '')}/?portalFuncionarioToken=${token}`
+    res.status(201).json({
+      tipo: 'PORTARIA_TEMPORARIO',
+      token,
+      condominioId: req.user.condominioId,
+      expiraEm,
+      segundos: validadeMinutos * 60,
+      link,
+      qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(link)}`,
+    })
+  } catch (e) { next(e) }
 })
 
 funcionariosRouter.get('/', async (req, res, next) => {
