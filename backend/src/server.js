@@ -24,6 +24,7 @@ import { condominioRouter }  from './routes/condominio.js'
 import { portalRouter }      from './routes/portal.js'
 import { checklistsRouter }  from './routes/checklists.js'
 import { funcionariosRouter } from './routes/funcionarios.js'
+import { portariaRouter } from './routes/portaria.js'
 import { agendadorRouter } from './jobs/agendador.js'
 import { errorHandler, requestId }      from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
@@ -56,10 +57,8 @@ function canReachRedis(timeoutMs = 700) {
   })
 }
 
-// Segurança — headers HTTP
 app.use(helmet())
 
-// CORS — permite produção, preview da Vercel e ambiente local
 const configuredOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
   : []
@@ -75,18 +74,14 @@ const allowedOrigins = [
 function isAllowedOrigin(origin) {
   if (!origin) return true
   if (allowedOrigins.includes(origin)) return true
-
   try {
     const { hostname, protocol } = new URL(origin)
     if (protocol !== 'https:') return false
-
-    // Domínio oficial e previews gerados pela Vercel para este projeto
     if (hostname === 'ta-na-mao-xeim.vercel.app') return true
     if (hostname.startsWith('ta-na-mao-xeim-') && hostname.endsWith('.vercel.app')) return true
   } catch {
     return false
   }
-
   return false
 }
 
@@ -105,15 +100,11 @@ app.options('*', cors())
 app.use(express.json({ limit: '20mb' }))
 app.use(express.urlencoded({ extended: true }))
 
-// Servir /uploads/ apenas em desenvolvimento (sem S3 configurado)
 if (!process.env.S3_BUCKET) {
   app.use('/uploads', express.static('uploads'))
 }
 
-// Request ID para rastreamento
 app.use(requestId)
-
-// Rate limit global na API
 app.use('/api', apiLimiter)
 
 app.use('/api/auth',          authRouter)
@@ -136,6 +127,7 @@ app.use('/api/ia',            iaRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/funcionarios',  funcionariosRouter)
+app.use('/api/portaria',      portariaRouter)
 app.use('/api/portal',        portalRouter)
 app.use('/api/jobs',          agendadorRouter)
 
