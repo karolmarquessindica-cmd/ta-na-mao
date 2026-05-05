@@ -3,9 +3,15 @@ import crypto from 'crypto'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { criarNotificacao } from './notificacao.js'
-import { enviarWhatsApp } from './whatsapp.js'
+import * as whatsappModule from './whatsapp.js'
 
 export const portariaRouter = Router()
+const enviarWhatsApp =
+  typeof whatsappModule.enviarWhatsApp === 'function'
+    ? whatsappModule.enviarWhatsApp
+    : typeof whatsappModule.default?.enviarWhatsApp === 'function'
+      ? whatsappModule.default.enviarWhatsApp
+      : null
 
 let ensured = false
 
@@ -101,16 +107,18 @@ async function notificarAdmins({ condominioId, ocorrencia }) {
   })))
 
   const mensagem = montarMensagemOcorrencia(ocorrencia, condominio?.nome)
-  await Promise.allSettled(
-    admins
-      .filter(admin => admin.whatsapp)
-      .map(admin => enviarWhatsApp({
-        condominioId,
-        numero: admin.whatsapp,
-        mensagem,
-        evento: 'PORTARIA_OCORRENCIA',
-      }))
-  )
+  if (enviarWhatsApp) {
+    await Promise.allSettled(
+      admins
+        .filter(admin => admin.whatsapp)
+        .map(admin => enviarWhatsApp({
+          condominioId,
+          numero: admin.whatsapp,
+          mensagem,
+          evento: 'PORTARIA_OCORRENCIA',
+        }))
+    )
+  }
 }
 
 portariaRouter.post('/ocorrencias/:token', async (req, res, next) => {
