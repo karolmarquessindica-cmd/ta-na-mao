@@ -7,6 +7,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Dashboard from "./pages/Dashboard";
+import GerenciadorFuncionarios from "./pages/GerenciadorFuncionarios";
+import FolhaDePonto from "./pages/FolhaDePonto";
+import ModoPortariaFuncionario from "./pages/ModoPortariaFuncionario";
+import OcorrenciasPortaria from "./pages/OcorrenciasPortaria";
+import PortalFuncionario from "./pages/PortalFuncionario";
 
 // ─── CONFIG ──────────────────────────────────────────────────
 const BASE = (import.meta.env.VITE_API_URL || "https://ta-na-mao-1.onrender.com").replace(/\/$/, "");
@@ -675,7 +680,10 @@ function Sidebar({ cur, go, user, onLogout }) {
       {id:"cotacoes",  i:"clipboard", l:"Cotações"},
       {id:"inventario",i:"box",    l:"Inventário"},
       {id:"whatsapp",  i:"wa",     l:"WhatsApp"},
-      {id:"portal",    i:"user",   l:"Portal dos Funcionários"},
+      {id:"funcionarios", i:"users", l:"Funcionários"},
+      {id:"folhaPonto", i:"chart", l:"Folha de Ponto"},
+      {id:"modoPortariaFuncionario", i:"shield", l:"Modo Portaria"},
+      {id:"ocorrenciasPortaria", i:"alert", l:"Ocorrências"},
       {id:"usuarios",  i:"users",  l:"Usuários"},
       {id:"relatorios",i:"chart",  l:"Relatórios"},
     ]},
@@ -6031,7 +6039,11 @@ export default function App() {
     inventario: <InventarioPage toast={toast} />,
     usuarios:   <UsuariosPage toast={toast} />,
     relatorios: <RelatoriosPage toast={toast} />,
-    portal:     <PortalMorador user={user} />,
+    funcionarios: <GerenciadorFuncionarios />,
+    folhaPonto: <FolhaDePonto />,
+    modoPortariaFuncionario: <ModoPortariaFuncionario />,
+    ocorrenciasPortaria: <OcorrenciasPortaria />,
+    portal:     <PortalFuncionario />,
   };
 
   return (
