@@ -683,6 +683,7 @@ function Sidebar({ cur, go, user, onLogout }) {
       {id:"funcionarios", i:"users", l:"Funcionários"},
       {id:"folhaPonto", i:"chart", l:"Folha de Ponto"},
       {id:"modoPortariaFuncionario", i:"shield", l:"Modo Portaria"},
+
       {id:"ocorrenciasPortaria", i:"alert", l:"Ocorrências"},
       {id:"usuarios",  i:"users",  l:"Usuários"},
       {id:"relatorios",i:"chart",  l:"Relatórios"},
