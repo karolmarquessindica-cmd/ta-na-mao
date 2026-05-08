@@ -5,12 +5,6 @@ import { authenticate } from '../middleware/auth.js'
 import { criarNotificacao } from './notificacao.js'
 
 export const portariaRouter = Router()
-const enviarWhatsApp =
-  typeof whatsappModule.enviarWhatsApp === 'function'
-    ? whatsappModule.enviarWhatsApp
-    : typeof whatsappModule.default?.enviarWhatsApp === 'function'
-      ? whatsappModule.default.enviarWhatsApp
-      : null
 
 let ensured = false
 
@@ -83,8 +77,7 @@ async function notificarAdmins({ condominioId, ocorrencia }) {
     mensagem: `${ocorrencia.tipo}: ${ocorrencia.titulo}`,
     link: '/funcionarios',
   })))
-
-
+}
 
 portariaRouter.post('/ocorrencias/:token', async (req, res, next) => {
   try {
