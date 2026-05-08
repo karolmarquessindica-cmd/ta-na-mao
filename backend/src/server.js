@@ -30,6 +30,7 @@ import { errorHandler, requestId }      from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
 
 const app = express()
+app.set('trust proxy', 1)
 const PORT = process.env.PORT || 3001
 
 function getRedisTarget() {
@@ -127,6 +128,14 @@ app.use('/api/ia',            iaRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/funcionarios',  funcionariosRouter)
+app.get('/api/ponto', (req, res, next) => {
+  req.url = '/pontos'
+  return funcionariosRouter(req, res, next)
+})
+app.post('/api/ponto', (req, res, next) => {
+  req.url = '/ponto'
+  return funcionariosRouter(req, res, next)
+})
 app.use('/api/portaria',      portariaRouter)
 app.use('/api/portal',        portalRouter)
 app.use('/api/jobs',          agendadorRouter)
