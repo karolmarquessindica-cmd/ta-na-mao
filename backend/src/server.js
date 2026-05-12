@@ -77,9 +77,9 @@ function isAllowedOrigin(origin) {
   if (allowedOrigins.includes(origin)) return true
   try {
     const { hostname, protocol } = new URL(origin)
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return true
     if (protocol !== 'https:') return false
-    if (hostname === 'ta-na-mao-xeim.vercel.app') return true
-    if (hostname.startsWith('ta-na-mao-xeim-') && hostname.endsWith('.vercel.app')) return true
+    if (hostname.endsWith('.vercel.app')) return true
   } catch {
     return false
   }
