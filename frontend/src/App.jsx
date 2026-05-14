@@ -6033,7 +6033,7 @@ export default function App() {
     inventario: <InventarioPage toast={toast} />,
     usuarios:   <UsuariosPage toast={toast} />,
     relatorios: <RelatoriosPage toast={toast} />,
-};
+
 
   return (
     <>

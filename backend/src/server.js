@@ -57,12 +57,13 @@ function canReachRedis(timeoutMs = 700) {
 }
 
 app.use(helmet())
+
   credentials: true,
 }))
 
 app.options('*', cors())
 
-app.use(express.json({ limit: '20mb' }))
+app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 if (!process.env.S3_BUCKET) {

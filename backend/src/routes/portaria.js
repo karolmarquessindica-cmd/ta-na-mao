@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { criarNotificacao } from './notificacao.js'
 
+
 export const portariaRouter = Router()
 
 let ensured = false
@@ -77,7 +78,6 @@ async function notificarAdmins({ condominioId, ocorrencia }) {
     mensagem: `${ocorrencia.tipo}: ${ocorrencia.titulo}`,
     link: '/funcionarios',
   })))
-
 
 portariaRouter.post('/ocorrencias/:token', async (req, res, next) => {
   try {
