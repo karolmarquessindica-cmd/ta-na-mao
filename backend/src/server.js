@@ -60,39 +60,8 @@ function canReachRedis(timeoutMs = 700) {
 
 app.use(helmet())
 
-const configuredOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  : []
-
-const allowedOrigins = [
-  'https://ta-na-mao-xeim.vercel.app',
-  process.env.FRONTEND_URL,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  ...configuredOrigins,
-].filter(Boolean)
-
-function isAllowedOrigin(origin) {
-  if (!origin) return true
-  if (allowedOrigins.includes(origin)) return true
-  try {
-    const { hostname, protocol } = new URL(origin)
-    if (protocol !== 'https:') return false
-    if (hostname === 'ta-na-mao-xeim.vercel.app') return true
-    if (hostname.startsWith('ta-na-mao-xeim-') && hostname.endsWith('.vercel.app')) return true
-  } catch {
-    return false
-  }
-  return false
-}
-
 app.use(cors({
-  origin: (origin, cb) => {
-    if (isAllowedOrigin(origin)) return cb(null, true)
-    return cb(new Error(`CORS não permitido para origem: ${origin}`))
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: process.env.CORS_ORIGIN || true,
   credentials: true,
 }))
 
