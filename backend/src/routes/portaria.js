@@ -3,8 +3,6 @@ import crypto from 'crypto'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { criarNotificacao } from './notificacao.js'
-// import { enviarWhatsApp } from './whatsapp.js'
-
 export const portariaRouter = Router()
 
 let ensured = false
@@ -79,18 +77,6 @@ async function notificarAdmins({ condominioId, ocorrencia }) {
     link: '/funcionarios',
   })))
 
-  // Integração de WhatsApp desativada temporariamente para evitar falha de deploy.
-  // await Promise.allSettled(
-  //   admins
-  //     .filter(admin => admin.whatsapp)
-  //     .map(admin => enviarWhatsApp({
-  //       condominioId,
-  //       numero: admin.whatsapp,
-  //       mensagem,
-  //       evento: 'PORTARIA_OCORRENCIA',
-  //     }))
-  // )
-}
 
 portariaRouter.post('/ocorrencias/:token', async (req, res, next) => {
   try {

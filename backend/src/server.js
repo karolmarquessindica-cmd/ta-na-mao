@@ -59,7 +59,6 @@ function canReachRedis(timeoutMs = 700) {
 }
 
 app.use(helmet())
-
 app.use(cors({
   origin: process.env.CORS_ORIGIN || true,
   credentials: true,
