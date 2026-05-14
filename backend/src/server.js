@@ -21,7 +21,6 @@ import { reservaRouter }     from './routes/reserva.js'
 import { relatorioRouter }   from './routes/relatorio.js'
 import { iaRouter }          from './routes/ia.js'
 import { condominioRouter }  from './routes/condominio.js'
-import { portalRouter }      from './routes/portal.js'
 import { checklistsRouter }  from './routes/checklists.js'
 import { funcionariosRouter } from './routes/funcionarios.js'
 import { portariaRouter } from './routes/portaria.js'
@@ -30,6 +29,7 @@ import { errorHandler, requestId }      from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
 
 const app = express()
+app.set('trust proxy', 1)
 const PORT = process.env.PORT || 3001
 
 function getRedisTarget() {
@@ -59,39 +59,8 @@ function canReachRedis(timeoutMs = 700) {
 
 app.use(helmet())
 
-const configuredOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  : []
-
-const allowedOrigins = [
-  'https://ta-na-mao-xeim.vercel.app',
-  process.env.FRONTEND_URL,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  ...configuredOrigins,
-].filter(Boolean)
-
-function isAllowedOrigin(origin) {
-  if (!origin) return true
-  if (allowedOrigins.includes(origin)) return true
-  try {
-    const { hostname, protocol } = new URL(origin)
-    if (protocol !== 'https:') return false
-    if (hostname === 'ta-na-mao-xeim.vercel.app') return true
-    if (hostname.startsWith('ta-na-mao-xeim-') && hostname.endsWith('.vercel.app')) return true
-  } catch {
-    return false
-  }
-  return false
-}
-
 app.use(cors({
-  origin: (origin, cb) => {
-    if (isAllowedOrigin(origin)) return cb(null, true)
-    return cb(new Error(`CORS não permitido para origem: ${origin}`))
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: '*',
   credentials: true,
 }))
 
@@ -127,8 +96,15 @@ app.use('/api/ia',            iaRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/funcionarios',  funcionariosRouter)
+app.get('/api/ponto', (req, res, next) => {
+  req.url = '/pontos'
+  return funcionariosRouter(req, res, next)
+})
+app.post('/api/ponto', (req, res, next) => {
+  req.url = '/ponto'
+  return funcionariosRouter(req, res, next)
+})
 app.use('/api/portaria',      portariaRouter)
-app.use('/api/portal',        portalRouter)
 app.use('/api/jobs',          agendadorRouter)
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.0', ts: new Date().toISOString() }))
