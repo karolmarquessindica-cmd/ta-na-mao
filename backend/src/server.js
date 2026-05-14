@@ -22,7 +22,6 @@ import { relatorioRouter }   from './routes/relatorio.js'
 import { iaRouter }          from './routes/ia.js'
 import { condominioRouter }  from './routes/condominio.js'
 import { checklistsRouter }  from './routes/checklists.js'
-import { funcionariosRouter } from './routes/funcionarios.js'
 import { portariaRouter } from './routes/portaria.js'
 import { agendadorRouter } from './jobs/agendador.js'
 import { errorHandler, requestId }      from './middleware/errorHandler.js'
@@ -95,15 +94,6 @@ app.use('/api/relatorios',    relatorioRouter)
 app.use('/api/ia',            iaRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/checklists',    checklistsRouter)
-app.use('/api/funcionarios',  funcionariosRouter)
-app.get('/api/ponto', (req, res, next) => {
-  req.url = '/pontos'
-  return funcionariosRouter(req, res, next)
-})
-app.post('/api/ponto', (req, res, next) => {
-  req.url = '/ponto'
-  return funcionariosRouter(req, res, next)
-})
 app.use('/api/portaria',      portariaRouter)
 app.use('/api/jobs',          agendadorRouter)
 
