@@ -7,6 +7,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Dashboard from "./pages/Dashboard";
+import GerenciadorFuncionarios from "./pages/GerenciadorFuncionarios";
+import FolhaDePonto from "./pages/FolhaDePonto";
+import ModoPortariaFuncionario from "./pages/ModoPortariaFuncionario";
+import OcorrenciasPortaria from "./pages/OcorrenciasPortaria";
+import PortalFuncionario from "./pages/PortalFuncionario";
 
 // ─── CONFIG ──────────────────────────────────────────────────
 const BASE = (import.meta.env.VITE_API_URL || "https://ta-na-mao-1.onrender.com").replace(/\/$/, "");
@@ -6028,7 +6033,7 @@ export default function App() {
     inventario: <InventarioPage toast={toast} />,
     usuarios:   <UsuariosPage toast={toast} />,
     relatorios: <RelatoriosPage toast={toast} />,
-  };
+};
 
   return (
     <>
