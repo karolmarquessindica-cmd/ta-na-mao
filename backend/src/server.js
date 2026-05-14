@@ -21,9 +21,7 @@ import { reservaRouter }     from './routes/reserva.js'
 import { relatorioRouter }   from './routes/relatorio.js'
 import { iaRouter }          from './routes/ia.js'
 import { condominioRouter }  from './routes/condominio.js'
-import { portalRouter }      from './routes/portal.js'
 import { checklistsRouter }  from './routes/checklists.js'
-import { funcionariosRouter } from './routes/funcionarios.js'
 import { portariaRouter } from './routes/portaria.js'
 import { agendadorRouter } from './jobs/agendador.js'
 import { errorHandler, requestId }      from './middleware/errorHandler.js'
@@ -59,8 +57,6 @@ function canReachRedis(timeoutMs = 700) {
 }
 
 app.use(helmet())
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || true,
   credentials: true,
 }))
 
@@ -95,17 +91,7 @@ app.use('/api/relatorios',    relatorioRouter)
 app.use('/api/ia',            iaRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/checklists',    checklistsRouter)
-app.use('/api/funcionarios',  funcionariosRouter)
-app.get('/api/ponto', (req, res, next) => {
-  req.url = '/pontos'
-  return funcionariosRouter(req, res, next)
-})
-app.post('/api/ponto', (req, res, next) => {
-  req.url = '/ponto'
-  return funcionariosRouter(req, res, next)
-})
 app.use('/api/portaria',      portariaRouter)
-app.use('/api/portal',        portalRouter)
 app.use('/api/jobs',          agendadorRouter)
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.0', ts: new Date().toISOString() }))
