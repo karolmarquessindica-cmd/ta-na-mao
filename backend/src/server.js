@@ -22,9 +22,8 @@ import { relatorioRouter }   from './routes/relatorio.js'
 import { iaRouter }          from './routes/ia.js'
 import { condominioRouter }  from './routes/condominio.js'
 import { checklistsRouter }  from './routes/checklists.js'
-import { portariaRouter } from './routes/portaria.js'
-import { agendadorRouter } from './jobs/agendador.js'
-import { errorHandler, requestId }      from './middleware/errorHandler.js'
+import { agendadorRouter }   from './jobs/agendador.js'
+import { errorHandler, requestId } from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
 
 const app = express()
@@ -58,6 +57,8 @@ function canReachRedis(timeoutMs = 700) {
 
 app.use(helmet())
 
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || true,
   credentials: true,
 }))
 
@@ -92,7 +93,6 @@ app.use('/api/relatorios',    relatorioRouter)
 app.use('/api/ia',            iaRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/checklists',    checklistsRouter)
-app.use('/api/portaria',      portariaRouter)
 app.use('/api/jobs',          agendadorRouter)
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.0', ts: new Date().toISOString() }))
