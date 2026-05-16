@@ -55,15 +55,17 @@ function canReachRedis(timeoutMs = 700) {
   })
 }
 
-app.use(helmet())
-
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || true,
+const corsOptions = {
+  origin: true,
   credentials: true,
-}))
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}
 
-app.options('*', cors())
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 
+app.use(helmet())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
