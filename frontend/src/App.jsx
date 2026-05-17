@@ -6028,6 +6028,10 @@ export default function App() {
     inventario: <InventarioPage toast={toast} />,
     usuarios:   <UsuariosPage toast={toast} />,
     relatorios: <RelatoriosPage toast={toast} />,
+    financeiro: <FinanceiroPage toast={toast} />,
+    reservas:   <ReservasPage toast={toast} />,
+    portal:     <PortalMorador user={user} />,
+  };
 
 
   return (
