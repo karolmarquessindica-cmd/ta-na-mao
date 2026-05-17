@@ -118,7 +118,7 @@ function ensurePortalToken(config) {
 function portalLink(req, config) {
   const token = config?.portalMorador?.token
   if (!token) return null
-  const base = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`.replace(':3001', ':5173')
+  const base = process.env.FRONTEND_URL
   return `${base.replace(/\/$/, '')}/?portal=${token}`
 }
 
