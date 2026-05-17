@@ -45,6 +45,10 @@ function normalizeText(value = '') {
     .toLowerCase()
 }
 
+function isFinancialQuestion(message = '') {
+  return /(financeir|balancete|prestacao|prestação|conta|contas|despesa|receita|gasto|pagamento|valor|valores|taxa|auditoria|auditar|compar|mes|meses|mensal|fornecedor|nota fiscal|nf|boleto|comprovante|inadimpl|saldo|caixa|rateio|orcamento|orçamento)/i.test(normalizeText(message))
+}
+
 function getSearchTerms(message) {
   const stop = new Set([
     'para', 'pela', 'pelo', 'como', 'qual', 'quais', 'quanto', 'quantos', 'sobre',
@@ -53,11 +57,16 @@ function getSearchTerms(message) {
     'com', 'dos', 'das', 'uma', 'uns', 'por', 'que', 'de', 'da', 'do', 'em', 'no', 'na', 'os', 'as', 'um', 'o', 'a', 'e'
   ])
 
-  return normalizeText(message)
+  const base = normalizeText(message)
     .split(/[^a-z0-9]+/)
     .map(t => t.trim())
     .filter(t => t.length >= 3 && !stop.has(t))
-    .slice(0, 12)
+
+  const financialBoost = isFinancialQuestion(message)
+    ? ['receita', 'despesa', 'despesas', 'saldo', 'valor', 'total', 'pagamento', 'fornecedor', 'manutencao', 'limpeza', 'seguranca', 'agua', 'energia', 'elevador', 'piscina', 'folha', 'administracao']
+    : []
+
+  return Array.from(new Set([...base, ...financialBoost])).slice(0, 24)
 }
 
 function extractRelevantSnippets(texto, message, maxSnippets = 4) {
@@ -67,27 +76,27 @@ function extractRelevantSnippets(texto, message, maxSnippets = 4) {
   const clean = String(texto).replace(/\s+/g, ' ').trim()
   const normalized = normalizeText(clean)
 
-  if (!terms.length) return clean ? [clean.slice(0, 1200)] : []
+  if (!terms.length) return clean ? [clean.slice(0, 1600)] : []
 
   const positions = []
   for (const term of terms) {
     let index = normalized.indexOf(term)
-    while (index >= 0 && positions.length < 40) {
+    while (index >= 0 && positions.length < 80) {
       positions.push(index)
       index = normalized.indexOf(term, index + term.length)
     }
   }
 
-  if (!positions.length) return clean ? [clean.slice(0, 1200)] : []
+  if (!positions.length) return clean ? [clean.slice(0, 1600)] : []
 
   const snippets = []
   const used = []
 
   for (const pos of positions.sort((a, b) => a - b)) {
-    const start = Math.max(0, pos - 420)
-    const end = Math.min(clean.length, pos + 780)
+    const start = Math.max(0, pos - 650)
+    const end = Math.min(clean.length, pos + 1150)
 
-    if (used.some(([a, b]) => Math.abs(start - a) < 350 || (start >= a && start <= b))) continue
+    if (used.some(([a, b]) => Math.abs(start - a) < 500 || (start >= a && start <= b))) continue
 
     used.push([start, end])
     snippets.push(clean.slice(start, end))
@@ -99,13 +108,14 @@ function extractRelevantSnippets(texto, message, maxSnippets = 4) {
 
 function buildDocumentSourceContext(documentosFonte, message) {
   const fontes = []
+  const financeiro = isFinancialQuestion(message)
 
   for (const doc of documentosFonte || []) {
-    const snippets = extractRelevantSnippets(doc.textoExtraido, message, 3)
+    const snippets = extractRelevantSnippets(doc.textoExtraido, message, financeiro ? 5 : 3)
     if (!snippets.length) continue
 
     fontes.push([
-      `Fonte: ${doc.nome} | categoria: ${sanitizeLine(doc.categoriaIA, 'DOCUMENTO')} | pasta: ${doc.pasta} | acesso: ${doc.acesso}`,
+      `Fonte: ${doc.nome} | categoria: ${sanitizeLine(doc.categoriaIA, 'DOCUMENTO')} | pasta: ${doc.pasta} | acesso: ${doc.acesso} | criado em: ${formatDate(doc.createdAt)}`,
       ...snippets.map((s, i) => `Trecho ${i + 1}: ${s}`)
     ].join('\n'))
   }
@@ -119,6 +129,7 @@ async function buildContext(req, message = '') {
   const condominioId = req.user.condominioId
   const isMorador = req.user.role === 'MORADOR'
   const now = new Date()
+  const financeiro = isFinancialQuestion(message)
 
   const [
     condominio,
@@ -147,7 +158,7 @@ async function buildContext(req, message = '') {
       },
       select: { nome: true, pasta: true, tipo: true, acesso: true, descricao: true, createdAt: true, usarComoFonteIA: true, categoriaIA: true },
       orderBy: { createdAt: 'desc' },
-      take: 16,
+      take: financeiro ? 30 : 16,
     }),
     prisma.documento.findMany({
       where: {
@@ -158,7 +169,7 @@ async function buildContext(req, message = '') {
       },
       select: { nome: true, pasta: true, tipo: true, acesso: true, descricao: true, categoriaIA: true, textoExtraido: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
-      take: 8,
+      take: financeiro ? 20 : 8,
     }),
     prisma.comunicado.findMany({
       where: { condominioId },
@@ -214,6 +225,7 @@ async function buildContext(req, message = '') {
   ])
 
   return [
+    `Modo de pergunta: ${financeiro ? 'ANALISE_FINANCEIRA_DOCUMENTAL' : 'GERAL'}`,
     `Condominio: ${sanitizeLine(condominio?.nome)} | endereco: ${sanitizeLine(condominio?.endereco)} | telefone: ${sanitizeLine(condominio?.telefone)} | email: ${sanitizeLine(condominio?.email)}`,
     `Usuario: ${sanitizeLine(user?.nome)} | perfil: ${sanitizeLine(user?.role)} | unidade: ${sanitizeLine(user?.unidade)} | bloco: ${sanitizeLine(user?.bloco)}`,
     '',
@@ -285,6 +297,10 @@ function localAnswer(message, context) {
 
   const fontesIA = section('Fontes documentais da IA extraidas de PDFs')
   if (fontesIA && !fontesIA.startsWith('Nenhum trecho')) {
+    if (isFinancialQuestion(message)) {
+      return `Encontrei trechos financeiros nos documentos cadastrados como fonte da IA. Para uma auditoria completa e comparação entre meses, a IA avançada precisa estar ativa. Trechos encontrados:\n\n${fontesIA.slice(0, 3200)}\n\nFonte: documentos marcados como fonte da IA no condomínio.`
+    }
+
     return `Encontrei trechos nos documentos cadastrados como fonte da IA:\n\n${fontesIA.slice(0, 2600)}\n\nFonte: documentos marcados como fonte da IA no condomínio.`
   }
 
@@ -321,8 +337,11 @@ async function askAnthropic({ message, history, canal, context }) {
     'Use somente os dados do contexto. Se nao houver dado suficiente, diga isso e oriente o proximo passo.',
     'Quando houver Fontes documentais da IA extraidas de PDFs, priorize esses trechos acima de qualquer outro dado.',
     'Sempre que responder com base em PDF, cite o nome do documento usado como fonte.',
+    'Se o modo for ANALISE_FINANCEIRA_DOCUMENTAL, aja como analista financeiro condominial: compare meses, agrupe receitas/despesas, destaque aumentos relevantes, fornecedores recorrentes, valores duplicados, gastos fora da média e pontos que exigem conferência humana.',
+    'Em auditoria financeira, separe a resposta em: Resumo, Comparativo, Pontos de atenção, Possíveis inconsistências, Fontes utilizadas e Limitações da análise.',
+    'Nunca acuse fraude. Use expressões como indício, ponto de atenção, divergência aparente ou item que exige conferência documental.',
     'Nunca revele dados privados de outros moradores. Para moradores, trate apenas dados do proprio usuario e documentos publicos.',
-    'Nao invente regras, valores, datas, status ou fontes.',
+    'Nao invente regras, valores, datas, status ou fontes. Se o PDF nao trouxer valor claro, diga que o documento não permite concluir com segurança.',
     `Canal atual: ${canal}.`,
     '',
     'Contexto do condominio:',
@@ -343,7 +362,7 @@ async function askAnthropic({ message, history, canal, context }) {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1100,
+      max_tokens: isFinancialQuestion(message) ? 1700 : 1100,
       temperature: 0.1,
       system,
       messages,
