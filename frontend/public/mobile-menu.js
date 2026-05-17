@@ -1,9 +1,30 @@
 (function () {
+  const LEGACY_MENU_LABELS = new Set([
+    'Funcionários',
+    'Funcionarios',
+    'Folha de Ponto',
+    'Modo Portaria',
+    'Ocorrências',
+    'Ocorrencias'
+  ])
+
   function isMobile() {
     return window.matchMedia('(max-width: 768px)').matches
   }
 
+  function cleanLegacySidebarItems() {
+    const sidebar = document.querySelector('.sidebar')
+    if (!sidebar) return
+
+    sidebar.querySelectorAll('.nav-item').forEach(function (item) {
+      const label = (item.textContent || '').replace(/\s+/g, ' ').trim()
+      if (LEGACY_MENU_LABELS.has(label)) item.remove()
+    })
+  }
+
   function ensureMobileMenu() {
+    cleanLegacySidebarItems()
+
     if (!isMobile()) {
       document.body.classList.remove('tnm-menu-open')
       return
@@ -61,6 +82,7 @@
   window.addEventListener('resize', ensureMobileMenu)
 
   const observer = new MutationObserver(function () {
+    cleanLegacySidebarItems()
     ensureMobileMenu()
   })
 
