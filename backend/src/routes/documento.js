@@ -2,6 +2,7 @@
 import { Router } from 'express'
 import path from 'path'
 import fs from 'fs'
+import pdf from 'pdf-parse'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { parsePagination, paginatedResponse } from '../lib/pagination.js'
@@ -61,12 +62,10 @@ documentoRouter.get('/:id/download', async (req, res, next) => {
     if (!doc) return res.status(404).json({ error: 'Não encontrado', code: 'NOT_FOUND' })
 
     if (isS3Enabled) {
-      // doc.url armazena a chave S3 quando S3 está ativo
       const signedUrl = await getSignedUrl(doc.url)
       return res.redirect(signedUrl)
     }
 
-    // Modo local: redirecionar para /uploads/arquivo
     return res.redirect(doc.url)
   } catch (e) { next(e) }
 })
@@ -74,27 +73,52 @@ documentoRouter.get('/:id/download', async (req, res, next) => {
 // POST /api/documentos — upload de arquivo (S3 ou local)
 documentoRouter.post('/', uploadLimiter, multerUpload.single('arquivo'), async (req, res, next) => {
   try {
-    const { nome, pasta, acesso, descricao } = req.body
+    const { nome, pasta, acesso, descricao, categoriaIA } = req.body
     const file = req.file
-    if (!file) return res.status(400).json({ error: 'Arquivo obrigatório', code: 'VALIDATION_ERROR' })
 
-    // Validar magic bytes — buffer (S3) ou path (local)
+    if (!file) {
+      return res.status(400).json({ error: 'Arquivo obrigatório', code: 'VALIDATION_ERROR' })
+    }
+
     const validation = isS3Enabled
       ? await validateBufferMagicBytes(file.buffer)
       : await validateFileMagicBytes(file.path)
 
     if (!validation.valid) {
       if (!isS3Enabled && file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path)
+
       return res.status(400).json({
         error: `Tipo de arquivo não permitido: ${validation.detectedType}`,
         code: 'INVALID_FILE_TYPE',
       })
     }
 
+    let textoExtraido = null
+    let usarComoFonteIA = false
+
+    if (file.mimetype === 'application/pdf' && file.buffer) {
+      try {
+        const parsed = await pdf(file.buffer)
+        textoExtraido = parsed?.text?.slice(0, 120000) || null
+        usarComoFonteIA = !!textoExtraido
+      } catch (error) {
+        console.warn('[documentos] erro ao extrair PDF:', error.message)
+      }
+    }
+
     const { url } = await uploadFile(file, 'docs')
 
     const ext = path.extname(file.originalname).slice(1).toUpperCase()
-    const tipo = { PDF: 'PDF', XLSX: 'Excel', XLS: 'Excel', DOCX: 'Word', PNG: 'Imagem', JPG: 'Imagem', JPEG: 'Imagem' }[ext] || ext
+
+    const tipo = {
+      PDF: 'PDF',
+      XLSX: 'Excel',
+      XLS: 'Excel',
+      DOCX: 'Word',
+      PNG: 'Imagem',
+      JPG: 'Imagem',
+      JPEG: 'Imagem'
+    }[ext] || ext
 
     const item = await prisma.documento.create({
       data: {
@@ -105,11 +129,17 @@ documentoRouter.post('/', uploadLimiter, multerUpload.single('arquivo'), async (
         descricao,
         url,
         tamanho: file.size,
+        textoExtraido,
+        usarComoFonteIA,
+        categoriaIA: categoriaIA || (tipo === 'PDF' ? 'DOCUMENTO' : null),
         condominioId: req.user.condominioId,
       }
     })
+
     res.status(201).json(item)
-  } catch (e) { next(e) }
+  } catch (e) {
+    next(e)
+  }
 })
 
 // DELETE /api/documentos/:id
@@ -118,12 +148,19 @@ documentoRouter.delete('/:id', async (req, res, next) => {
     const doc = await prisma.documento.findFirst({
       where: { id: req.params.id, condominioId: req.user.condominioId }
     })
-    if (!doc) return res.status(404).json({ error: 'Não encontrado', code: 'NOT_FOUND' })
+
+    if (!doc) {
+      return res.status(404).json({ error: 'Não encontrado', code: 'NOT_FOUND' })
+    }
 
     if (doc.url) {
       await deleteFile(storageKeyFromUrl(doc.url))
     }
+
     await prisma.documento.delete({ where: { id: req.params.id } })
+
     res.json({ ok: true })
-  } catch (e) { next(e) }
+  } catch (e) {
+    next(e)
+  }
 })
