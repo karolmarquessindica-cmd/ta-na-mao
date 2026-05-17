@@ -328,6 +328,9 @@ model Documento {
   acesso    DocumentoAcesso @default(PUBLICO)
   url       String
   tamanho   Int?
+  textoExtraido String?
+  usarComoFonteIA Boolean @default(false)
+  categoriaIA String?
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
