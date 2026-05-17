@@ -38,7 +38,84 @@ function listLines(items, mapper, empty) {
   return items.map(mapper).join('\n')
 }
 
-async function buildContext(req) {
+function normalizeText(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function getSearchTerms(message) {
+  const stop = new Set([
+    'para', 'pela', 'pelo', 'como', 'qual', 'quais', 'quanto', 'quantos', 'sobre',
+    'onde', 'esse', 'essa', 'isso', 'aqui', 'condominio', 'condominio', 'morador',
+    'moradores', 'voce', 'voces', 'tem', 'teve', 'foi', 'foram', 'esta', 'estao',
+    'com', 'dos', 'das', 'uma', 'uns', 'por', 'que', 'de', 'da', 'do', 'em', 'no', 'na', 'os', 'as', 'um', 'o', 'a', 'e'
+  ])
+
+  return normalizeText(message)
+    .split(/[^a-z0-9]+/)
+    .map(t => t.trim())
+    .filter(t => t.length >= 3 && !stop.has(t))
+    .slice(0, 12)
+}
+
+function extractRelevantSnippets(texto, message, maxSnippets = 4) {
+  if (!texto) return []
+
+  const terms = getSearchTerms(message)
+  const clean = String(texto).replace(/\s+/g, ' ').trim()
+  const normalized = normalizeText(clean)
+
+  if (!terms.length) return clean ? [clean.slice(0, 1200)] : []
+
+  const positions = []
+  for (const term of terms) {
+    let index = normalized.indexOf(term)
+    while (index >= 0 && positions.length < 40) {
+      positions.push(index)
+      index = normalized.indexOf(term, index + term.length)
+    }
+  }
+
+  if (!positions.length) return clean ? [clean.slice(0, 1200)] : []
+
+  const snippets = []
+  const used = []
+
+  for (const pos of positions.sort((a, b) => a - b)) {
+    const start = Math.max(0, pos - 420)
+    const end = Math.min(clean.length, pos + 780)
+
+    if (used.some(([a, b]) => Math.abs(start - a) < 350 || (start >= a && start <= b))) continue
+
+    used.push([start, end])
+    snippets.push(clean.slice(start, end))
+    if (snippets.length >= maxSnippets) break
+  }
+
+  return snippets
+}
+
+function buildDocumentSourceContext(documentosFonte, message) {
+  const fontes = []
+
+  for (const doc of documentosFonte || []) {
+    const snippets = extractRelevantSnippets(doc.textoExtraido, message, 3)
+    if (!snippets.length) continue
+
+    fontes.push([
+      `Fonte: ${doc.nome} | categoria: ${sanitizeLine(doc.categoriaIA, 'DOCUMENTO')} | pasta: ${doc.pasta} | acesso: ${doc.acesso}`,
+      ...snippets.map((s, i) => `Trecho ${i + 1}: ${s}`)
+    ].join('\n'))
+  }
+
+  return fontes.length
+    ? fontes.join('\n\n---\n\n')
+    : 'Nenhum trecho textual extraido de PDF foi encontrado como fonte da IA para esta pergunta.'
+}
+
+async function buildContext(req, message = '') {
   const condominioId = req.user.condominioId
   const isMorador = req.user.role === 'MORADOR'
   const now = new Date()
@@ -47,6 +124,7 @@ async function buildContext(req) {
     condominio,
     user,
     documentos,
+    documentosFonteIA,
     comunicados,
     chamados,
     taxas,
@@ -67,9 +145,20 @@ async function buildContext(req) {
         condominioId,
         ...(isMorador ? { acesso: 'PUBLICO' } : {}),
       },
-      select: { nome: true, pasta: true, tipo: true, acesso: true, descricao: true, createdAt: true },
+      select: { nome: true, pasta: true, tipo: true, acesso: true, descricao: true, createdAt: true, usarComoFonteIA: true, categoriaIA: true },
       orderBy: { createdAt: 'desc' },
-      take: 12,
+      take: 16,
+    }),
+    prisma.documento.findMany({
+      where: {
+        condominioId,
+        usarComoFonteIA: true,
+        textoExtraido: { not: null },
+        ...(isMorador ? { acesso: 'PUBLICO' } : {}),
+      },
+      select: { nome: true, pasta: true, tipo: true, acesso: true, descricao: true, categoriaIA: true, textoExtraido: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 8,
     }),
     prisma.comunicado.findMany({
       where: { condominioId },
@@ -128,10 +217,13 @@ async function buildContext(req) {
     `Condominio: ${sanitizeLine(condominio?.nome)} | endereco: ${sanitizeLine(condominio?.endereco)} | telefone: ${sanitizeLine(condominio?.telefone)} | email: ${sanitizeLine(condominio?.email)}`,
     `Usuario: ${sanitizeLine(user?.nome)} | perfil: ${sanitizeLine(user?.role)} | unidade: ${sanitizeLine(user?.unidade)} | bloco: ${sanitizeLine(user?.bloco)}`,
     '',
+    'Fontes documentais da IA extraidas de PDFs:',
+    buildDocumentSourceContext(documentosFonteIA, message),
+    '',
     'Documentos disponiveis:',
     listLines(
       documentos,
-      d => `- ${d.nome} (${d.tipo}, pasta ${d.pasta}, acesso ${d.acesso})${d.descricao ? `: ${d.descricao}` : ''}`,
+      d => `- ${d.nome} (${d.tipo}, pasta ${d.pasta}, acesso ${d.acesso})${d.usarComoFonteIA ? ' [fonte IA]' : ''}${d.categoriaIA ? ` [${d.categoriaIA}]` : ''}${d.descricao ? `: ${d.descricao}` : ''}`,
       '- Nenhum documento encontrado.'
     ),
     '',
@@ -180,7 +272,7 @@ async function buildContext(req) {
 }
 
 function localAnswer(message, context) {
-  const text = message.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const text = normalizeText(message)
 
   const section = name => {
     const marker = `${name}:`
@@ -191,16 +283,21 @@ function localAnswer(message, context) {
     return (end >= 0 ? rest.slice(0, end) : rest).trim()
   }
 
+  const fontesIA = section('Fontes documentais da IA extraidas de PDFs')
+  if (fontesIA && !fontesIA.startsWith('Nenhum trecho')) {
+    return `Encontrei trechos nos documentos cadastrados como fonte da IA:\n\n${fontesIA.slice(0, 2600)}\n\nFonte: documentos marcados como fonte da IA no condomínio.`
+  }
+
   if (/(chamado|reclamacao|manutencao|ticket)/.test(text)) {
     return `Posso te ajudar com chamados. Encontrei este panorama:\n\n${section('Chamados do morador') || section('Chamados recentes do condominio')}\n\nPara abrir um novo atendimento, use a aba Chamados e informe titulo, tipo e descricao.`
   }
 
   if (/(taxa|boleto|pix|financeiro|pagamento|vencimento|inadimpl)/.test(text)) {
-    return `Sobre financeiro, encontrei:\n\n${section('Taxas do morador') || section('Taxas recentes do condominio')}\n\nSe precisar de boleto, PIX ou baixa de pagamento, o sindico pode confirmar pelo modulo Financeiro.`
+    return `Sobre financeiro, encontrei:\n\n${section('Taxas do morador') || section('Taxas recentes do condominio')}\n\nSe houver balancete ou prestação de contas em PDF marcada como fonte da IA, eu consigo responder com base nesse documento.`
   }
 
-  if (/(documento|regulamento|ata|contrato|arquivo|norma)/.test(text)) {
-    return `Sobre documentos, estes sao os principais itens disponiveis para consulta:\n\n${section('Documentos disponiveis')}\n\nSe o documento desejado nao aparecer, solicite ao sindico que publique na Central de Documentos.`
+  if (/(documento|regulamento|ata|contrato|arquivo|norma|regimento|convencao|balancete)/.test(text)) {
+    return `Sobre documentos, estes sao os principais itens disponiveis para consulta:\n\n${section('Documentos disponiveis')}\n\nPara respostas com base no conteudo do PDF, o documento precisa estar marcado como fonte da IA e ter texto extraido.`
   }
 
   if (/(reserva|salao|churrasqueira|quadra|espaco)/.test(text)) {
@@ -211,7 +308,7 @@ function localAnswer(message, context) {
     return `Encontrei estes avisos e sugestoes:\n\nComunicados:\n${section('Comunicados recentes')}\n\nVoz do Morador:\n${section('Sugestoes da Voz do Morador')}`
   }
 
-  return `Posso ajudar com documentos, chamados, comunicados, taxas, reservas e regras do condominio. Pergunte, por exemplo: "qual o status do meu chamado?", "tenho taxa em atraso?", "quais documentos estao disponiveis?" ou "como reservar o salao?".`
+  return `Posso ajudar com documentos, chamados, comunicados, taxas, reservas e regras do condominio. Para eu responder com base em um PDF, o documento precisa ser enviado e marcado como fonte da IA.`
 }
 
 async function askAnthropic({ message, history, canal, context }) {
@@ -222,8 +319,10 @@ async function askAnthropic({ message, history, canal, context }) {
     'Voce e o assistente IA do SaaS condominial Ta na Mao.',
     'Responda sempre em portugues do Brasil, com tom claro, educado e objetivo.',
     'Use somente os dados do contexto. Se nao houver dado suficiente, diga isso e oriente o proximo passo.',
+    'Quando houver Fontes documentais da IA extraidas de PDFs, priorize esses trechos acima de qualquer outro dado.',
+    'Sempre que responder com base em PDF, cite o nome do documento usado como fonte.',
     'Nunca revele dados privados de outros moradores. Para moradores, trate apenas dados do proprio usuario e documentos publicos.',
-    'Nao invente regras, valores, datas ou status.',
+    'Nao invente regras, valores, datas, status ou fontes.',
     `Canal atual: ${canal}.`,
     '',
     'Contexto do condominio:',
@@ -244,8 +343,8 @@ async function askAnthropic({ message, history, canal, context }) {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 900,
-      temperature: 0.2,
+      max_tokens: 1100,
+      temperature: 0.1,
       system,
       messages,
     }),
@@ -263,7 +362,7 @@ async function askAnthropic({ message, history, canal, context }) {
 iaRouter.post('/chat', async (req, res, next) => {
   try {
     const input = chatSchema.parse(req.body)
-    const context = await buildContext(req)
+    const context = await buildContext(req, input.message)
 
     let answer = null
     let source = 'local'
