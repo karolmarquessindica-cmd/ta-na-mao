@@ -9,6 +9,9 @@
     "start": "node src/server.js",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "render:build": "npm install && npm run db:generate",
+    "render:dbpush": "npm run db:push",
     "db:seed": "node src/lib/seed.js",
     "db:reset": "prisma migrate reset --force && node src/lib/seed.js",
     "db:studio": "prisma studio"
@@ -16,7 +19,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1037.0",
     "@aws-sdk/s3-request-presigner": "^3.1037.0",
-    "@prisma/client": "^6.0.0",
+    "@prisma/client": "6.15.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.76.2",
     "cors": "^2.8.5",
