@@ -12,6 +12,7 @@ export const portalDocumentosSafeRouter = Router()
 portalDocumentosSafeRouter.use(authenticate)
 
 const DEFAULT_FRONTEND_URL = 'https://www.tonocondominio.com.br'
+const UPLOAD_DIR = 'uploads'
 
 const safeDocumentoSelect = {
   id: true,
@@ -87,7 +88,7 @@ function publicArquivoUrl(req, url) {
   if (!url) return null
   if (/^https?:\/\//i.test(url)) return url
   const key = storageKeyFromUrl(url)
-  if (isS3Enabled) return `${apiOrigin(req)}/api/arquivos/${key}`
+  if (isS3Enabled && !url.startsWith('/uploads/')) return `${apiOrigin(req)}/api/arquivos/${key}`
   if (url.startsWith('/uploads/')) return `${apiOrigin(req)}${url}`
   return `${apiOrigin(req)}/uploads/${String(url).replace(/^uploads\//, '')}`
 }
@@ -103,6 +104,7 @@ function montarResposta(req, condominio) {
       ...doc,
       url: previewUrl || doc.url,
       previewUrl: previewUrl || doc.url,
+      downloadUrl: previewUrl || doc.url,
       titulo: meta.titulo || doc.nome,
       categoria: meta.categoria || doc.pasta || 'Geral',
       publicadoEm: meta.publicadoEm || doc.createdAt,
@@ -158,6 +160,22 @@ async function validarArquivo(file) {
   }
 }
 
+async function uploadFileResilient(file, folder = 'portal-docs') {
+  try {
+    return await uploadFile(file, folder)
+  } catch (error) {
+    console.warn('[portal-documentos] Storage principal falhou. Usando fallback local:', error.message)
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true })
+    const ext = path.extname(file.originalname || '') || '.bin'
+    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`
+    const target = path.join(UPLOAD_DIR, filename)
+    if (file.buffer) fs.writeFileSync(target, file.buffer)
+    else if (file.path && fs.existsSync(file.path)) fs.copyFileSync(file.path, target)
+    else throw error
+    return { key: `${UPLOAD_DIR}/${filename}`, url: `/uploads/${filename}` }
+  }
+}
+
 portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', 'SINDICO'), uploadLimiter, multerUpload.single('arquivo'), async (req, res, next) => {
   try {
     const condominio = await buscarCondominio(req, req.params.id)
@@ -175,7 +193,7 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
     const categoria = String(req.body.categoria || 'Geral').trim() || 'Geral'
     const tipoDocumento = tipoArquivo(req.file, req.body.tipoDocumento)
     const publicadoEm = req.body.publicadoEm || new Date().toISOString()
-    const uploaded = await uploadFile(req.file, 'portal-docs')
+    const uploaded = await uploadFileResilient(req.file, 'portal-docs')
     const config = portalConfig(condominio.portalConfig)
 
     const documento = await prisma.documento.create({
@@ -187,6 +205,8 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
         descricao: req.body.descricao || 'Documento configurado no Portal do Morador',
         url: uploaded.url,
         tamanho: req.file.size,
+        usarComoFonteIA: usarIa,
+        categoriaIA: usarIa ? categoria : null,
         condominioId: condominio.id,
       },
       select: safeDocumentoSelect,
@@ -236,6 +256,15 @@ portalDocumentosSafeRouter.patch('/:id/portal-documentos/:documentoId', requireR
       tipoDocumento: req.body.tipoDocumento || existing.tipoDocumento || documento.tipo || 'Arquivo',
     }
 
+    await prisma.documento.update({
+      where: { id: documento.id },
+      data: {
+        acesso: visivelPortal ? 'PUBLICO' : 'PRIVADO',
+        usarComoFonteIA: usarIa,
+        categoriaIA: usarIa ? (portal.documentoMeta[documento.id].categoria || documento.pasta || 'Geral') : null,
+      },
+    }).catch(() => null)
+
     const updated = await prisma.condominio.update({
       where: { id: condominio.id },
       data: { portalConfig: config },
@@ -257,11 +286,10 @@ portalDocumentosSafeRouter.delete('/:id/portal-documentos/:documentoId', require
 
     const config = portalConfig(condominio.portalConfig)
     config.portalMorador.documentoIds = (config.portalMorador.documentoIds || []).filter(id => id !== documento.id)
-    if (config.portalMorador.documentoMeta?.[documento.id]) {
-      delete config.portalMorador.documentoMeta[documento.id]
-    }
+    if (config.portalMorador.documentoMeta?.[documento.id]) delete config.portalMorador.documentoMeta[documento.id]
 
     await prisma.documento.delete({ where: { id: documento.id } }).catch(async () => {
+      await prisma.documento.update({ where: { id: documento.id }, data: { acesso: 'PRIVADO', usarComoFonteIA: false, categoriaIA: null } }).catch(() => null)
       await prisma.condominio.update({ where: { id: condominio.id }, data: { portalConfig: config } })
     })
 
