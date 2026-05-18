@@ -1,5 +1,11 @@
 import { Router } from 'express'
+import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+import fs from 'fs'
 import { prisma } from '../lib/prisma.js'
+import { uploadLimiter } from '../middleware/rateLimiter.js'
+import { multerUpload, uploadFile, isS3Enabled } from '../lib/storage.js'
+import { validateFileMagicBytes, validateBufferMagicBytes } from '../lib/validateUpload.js'
 
 export const portalPublicSafeRouter = Router()
 
@@ -105,6 +111,16 @@ async function findCondominioByPortalToken(token) {
   return condominios.find(item => normalizePortalConfig(item.portalConfig).portalMorador.token === token) || null
 }
 
+function apiOrigin(req) {
+  return `${req.protocol}://${req.get('host')}`
+}
+
+function absoluteUrl(req, value) {
+  if (!value) return value
+  if (/^https?:\/\//i.test(value)) return value
+  return `${apiOrigin(req)}${value.startsWith('/') ? value : `/${value}`}`
+}
+
 function documentAccessType(value) {
   const normalized = String(value || '').toUpperCase()
   if (['APENAS_SINDICO', 'MORADOR', 'IA_INTERNA', 'IA_DO_PORTAL'].includes(normalized)) return normalized
@@ -150,7 +166,7 @@ function publicContacts(condominio, portal) {
   return [...configured, ...fromUsers]
 }
 
-function buildPayload(condominio) {
+function buildPayload(condominio, req) {
   const config = normalizePortalConfig(condominio.portalConfig)
   const portal = config.portalMorador
   const bannerIds = new Set(portal.bannerIds || [])
@@ -164,7 +180,7 @@ function buildPayload(condominio) {
     condominio: {
       id: condominio.id,
       nome: condominio.nome,
-      logoUrl: condominio.logo || null,
+      logoUrl: absoluteUrl(req, condominio.logo || null),
       endereco: condominio.endereco,
       cidade: condominio.cidade,
       estado: condominio.estado,
@@ -172,13 +188,52 @@ function buildPayload(condominio) {
       email: condominio.email,
     },
     config: portal,
-    banners: (condominio.banners || []).filter(item => bannerIds.has(item.id)).map(item => ({ ...item, descricao: portal.bannerMeta?.[item.id]?.descricao || '' })),
+    banners: (condominio.banners || [])
+      .filter(item => bannerIds.has(item.id))
+      .map(item => ({ ...item, imagem: absoluteUrl(req, item.imagem), descricao: portal.bannerMeta?.[item.id]?.descricao || '' })),
     comunicados: (condominio.comunicados || []).filter(item => comunicadoIds.has(item.id)).map(item => ({ ...item, portalMeta: portal.comunicadoMeta?.[item.id] || {} })),
     documentos,
     documentosIa,
     responsaveis: publicContacts(condominio, portal),
     manutencoesPrevistas: [],
     vozes: [],
+  }
+}
+
+function portalAnonymousEmail(condominioId) {
+  return `portal-${condominioId}@tanamao.local`
+}
+
+async function portalAnonymousUser(condominioId) {
+  const email = portalAnonymousEmail(condominioId)
+  const existing = await prisma.user.findUnique({ where: { email } })
+  if (existing) return existing
+  const senha = await bcrypt.hash(crypto.randomBytes(18).toString('base64url'), 10)
+  return prisma.user.create({
+    data: {
+      nome: 'Portal do Morador',
+      email,
+      senha,
+      role: 'MORADOR',
+      ativo: true,
+      condominioId,
+    },
+  })
+}
+
+async function validatePortalFiles(files = []) {
+  for (const file of files) {
+    const validation = isS3Enabled
+      ? await validateBufferMagicBytes(file.buffer)
+      : await validateFileMagicBytes(file.path)
+    const ok = validation.valid && (!validation.detectedType || validation.detectedType.startsWith('image/'))
+    if (!ok) {
+      if (!isS3Enabled && file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path)
+      const error = new Error('Envie apenas imagens validas no chamado.')
+      error.status = 400
+      error.code = 'INVALID_FILE_TYPE'
+      throw error
+    }
   }
 }
 
@@ -192,7 +247,58 @@ portalPublicSafeRouter.get('/:token', async (req, res, next) => {
       return res.status(403).json({ error: 'Portal indisponivel', code: 'PORTAL_UNAVAILABLE' })
     }
 
-    res.json(buildPayload(condominio))
+    res.json(buildPayload(condominio, req))
+  } catch (e) {
+    next(e)
+  }
+})
+
+portalPublicSafeRouter.post('/:token/chamados', uploadLimiter, multerUpload.array('fotos', 5), async (req, res, next) => {
+  try {
+    const condominio = await findCondominioByPortalToken(req.params.token)
+    if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
+
+    const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
+    if (portal.ativo === false || portal.permitirLink === false || portal.funcionalidades?.abrirChamado === false) {
+      return res.status(403).json({ error: 'Abertura de chamados indisponivel neste portal', code: 'PORTAL_TICKET_DISABLED' })
+    }
+
+    const descricao = String(req.body?.descricao || '').trim()
+    const local = String(req.body?.local || '').trim()
+    const categoria = String(req.body?.categoria || 'MANUTENCAO').toUpperCase()
+
+    if (!descricao) return res.status(400).json({ error: 'Descricao do chamado e obrigatoria', code: 'VALIDATION_ERROR' })
+
+    const files = req.files || []
+    await validatePortalFiles(files)
+
+    const uploads = []
+    for (const file of files) {
+      const { url } = await uploadFile(file, 'portal-chamados')
+      uploads.push(url)
+    }
+
+    const morador = await portalAnonymousUser(condominio.id)
+    const chamado = await prisma.chamado.create({
+      data: {
+        titulo: `Chamado pelo portal${local ? ` - ${local}` : ''}`,
+        descricao,
+        categoria: ['MANUTENCAO', 'RECLAMACAO', 'SUGESTAO'].includes(categoria) ? categoria : 'MANUTENCAO',
+        prioridade: 'MEDIA',
+        fotos: uploads,
+        moradorId: morador.id,
+        condominioId: condominio.id,
+        historico: { create: { acao: 'Chamado aberto pelo Portal do Morador', nota: local || null } },
+      },
+    })
+
+    res.status(201).json({
+      id: chamado.id,
+      protocolo: chamado.id.slice(0, 8).toUpperCase(),
+      status: chamado.status,
+      createdAt: chamado.createdAt,
+      mensagem: 'Chamado enviado para a administracao do condominio.',
+    })
   } catch (e) {
     next(e)
   }
