@@ -5,7 +5,7 @@ import fs from 'fs'
 import { prisma } from '../lib/prisma.js'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { uploadLimiter } from '../middleware/rateLimiter.js'
-import { multerUpload, uploadFile, isS3Enabled } from '../lib/storage.js'
+import { multerUpload, uploadFile, isS3Enabled, storageKeyFromUrl } from '../lib/storage.js'
 import { validateFileMagicBytes, validateBufferMagicBytes } from '../lib/validateUpload.js'
 
 export const portalDocumentosSafeRouter = Router()
@@ -79,14 +79,30 @@ function portalLink(config) {
   return `${base.replace(/\/$/, '')}/?portal=${token}`
 }
 
-function montarResposta(condominio) {
+function apiOrigin(req) {
+  return `${req.protocol}://${req.get('host')}`
+}
+
+function publicArquivoUrl(req, url) {
+  if (!url) return null
+  if (/^https?:\/\//i.test(url)) return url
+  const key = storageKeyFromUrl(url)
+  if (isS3Enabled) return `${apiOrigin(req)}/api/arquivos/${key}`
+  if (url.startsWith('/uploads/')) return `${apiOrigin(req)}${url}`
+  return `${apiOrigin(req)}/uploads/${String(url).replace(/^uploads\//, '')}`
+}
+
+function montarResposta(req, condominio) {
   const config = portalConfig(condominio.portalConfig)
   const portal = config.portalMorador
   const documentos = (condominio.documentos || []).map(doc => {
     const meta = portal.documentoMeta?.[doc.id] || {}
     const visivelPortal = Boolean((portal.documentoIds || []).includes(doc.id) || meta.visivelPortal)
+    const previewUrl = publicArquivoUrl(req, doc.url)
     return {
       ...doc,
+      url: previewUrl || doc.url,
+      previewUrl: previewUrl || doc.url,
       titulo: meta.titulo || doc.nome,
       categoria: meta.categoria || doc.pasta || 'Geral',
       publicadoEm: meta.publicadoEm || doc.createdAt,
@@ -94,6 +110,15 @@ function montarResposta(condominio) {
       usarIa: Boolean(meta.usarIa),
       tipoAcesso: tipoAcesso(meta.tipoAcesso || (doc.acesso === 'PUBLICO' ? 'MORADOR' : 'APENAS_SINDICO')),
       tipoDocumento: meta.tipoDocumento || doc.tipo || 'Arquivo',
+      portalMeta: {
+        titulo: meta.titulo || doc.nome,
+        categoria: meta.categoria || doc.pasta || 'Geral',
+        publicadoEm: meta.publicadoEm || doc.createdAt,
+        visivelPortal,
+        usarIa: Boolean(meta.usarIa),
+        tipoAcesso: tipoAcesso(meta.tipoAcesso || (doc.acesso === 'PUBLICO' ? 'MORADOR' : 'APENAS_SINDICO')),
+        tipoDocumento: meta.tipoDocumento || doc.tipo || 'Arquivo',
+      },
     }
   })
   const link = portalLink(config)
@@ -123,17 +148,23 @@ async function buscarCondominio(req, id, include = undefined) {
   })
 }
 
+async function validarArquivo(file) {
+  const validation = isS3Enabled ? await validateBufferMagicBytes(file.buffer) : await validateFileMagicBytes(file.path)
+  if (!validation.valid) {
+    if (!isS3Enabled && file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path)
+    const err = new Error(`Tipo de arquivo nao permitido: ${validation.detectedType || file.mimetype}`)
+    err.status = 400
+    throw err
+  }
+}
+
 portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', 'SINDICO'), uploadLimiter, multerUpload.single('arquivo'), async (req, res, next) => {
   try {
     const condominio = await buscarCondominio(req, req.params.id)
     if (!condominio) return res.status(404).json({ error: 'Condominio nao encontrado para este usuario' })
     if (!req.file) return res.status(400).json({ error: 'Arquivo obrigatorio' })
 
-    const validation = isS3Enabled ? await validateBufferMagicBytes(req.file.buffer) : await validateFileMagicBytes(req.file.path)
-    if (!validation.valid) {
-      if (!isS3Enabled && req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path)
-      return res.status(400).json({ error: `Tipo de arquivo nao permitido: ${validation.detectedType || req.file.mimetype}` })
-    }
+    await validarArquivo(req.file)
 
     const visivelPortal = boolValue(req.body.visivelPortal)
     const usarIa = boolValue(req.body.usarIa)
@@ -170,7 +201,72 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
       include: includePortal,
     })
 
-    res.status(201).json(montarResposta(updated))
+    res.status(201).json(montarResposta(req, updated))
+  } catch (e) {
+    next(e)
+  }
+})
+
+portalDocumentosSafeRouter.patch('/:id/portal-documentos/:documentoId', requireRole('ADMIN', 'SINDICO'), async (req, res, next) => {
+  try {
+    const condominio = await buscarCondominio(req, req.params.id, includePortal)
+    if (!condominio) return res.status(404).json({ error: 'Condominio nao encontrado para este usuario' })
+    const documento = (condominio.documentos || []).find(doc => doc.id === req.params.documentoId)
+    if (!documento) return res.status(404).json({ error: 'Documento nao encontrado neste condominio' })
+
+    const config = portalConfig(condominio.portalConfig)
+    const portal = config.portalMorador
+    const existing = portal.documentoMeta?.[documento.id] || {}
+    const visivelPortal = req.body.visivelPortal === undefined ? Boolean((portal.documentoIds || []).includes(documento.id) || existing.visivelPortal) : boolValue(req.body.visivelPortal)
+    const usarIa = req.body.usarIa === undefined ? Boolean(existing.usarIa) : boolValue(req.body.usarIa)
+    let acesso = tipoAcesso(req.body.tipoAcesso || existing.tipoAcesso || (visivelPortal ? 'MORADOR' : 'APENAS_SINDICO'))
+    if (visivelPortal && acesso === 'APENAS_SINDICO') acesso = 'MORADOR'
+
+    if (visivelPortal) portal.documentoIds = [...new Set([...(portal.documentoIds || []), documento.id])]
+    else portal.documentoIds = (portal.documentoIds || []).filter(id => id !== documento.id)
+
+    portal.documentoMeta[documento.id] = {
+      ...existing,
+      titulo: req.body.titulo || existing.titulo || documento.nome,
+      categoria: req.body.categoria || existing.categoria || documento.pasta || 'Geral',
+      publicadoEm: req.body.publicadoEm || existing.publicadoEm || documento.createdAt,
+      visivelPortal,
+      usarIa,
+      tipoAcesso: acesso,
+      tipoDocumento: req.body.tipoDocumento || existing.tipoDocumento || documento.tipo || 'Arquivo',
+    }
+
+    const updated = await prisma.condominio.update({
+      where: { id: condominio.id },
+      data: { portalConfig: config },
+      include: includePortal,
+    })
+
+    res.json(montarResposta(req, updated))
+  } catch (e) {
+    next(e)
+  }
+})
+
+portalDocumentosSafeRouter.delete('/:id/portal-documentos/:documentoId', requireRole('ADMIN', 'SINDICO'), async (req, res, next) => {
+  try {
+    const condominio = await buscarCondominio(req, req.params.id, includePortal)
+    if (!condominio) return res.status(404).json({ error: 'Condominio nao encontrado para este usuario' })
+    const documento = (condominio.documentos || []).find(doc => doc.id === req.params.documentoId)
+    if (!documento) return res.status(404).json({ error: 'Documento nao encontrado neste condominio' })
+
+    const config = portalConfig(condominio.portalConfig)
+    config.portalMorador.documentoIds = (config.portalMorador.documentoIds || []).filter(id => id !== documento.id)
+    if (config.portalMorador.documentoMeta?.[documento.id]) {
+      delete config.portalMorador.documentoMeta[documento.id]
+    }
+
+    await prisma.documento.delete({ where: { id: documento.id } }).catch(async () => {
+      await prisma.condominio.update({ where: { id: condominio.id }, data: { portalConfig: config } })
+    })
+
+    const updated = await prisma.condominio.findUnique({ where: { id: condominio.id }, include: includePortal })
+    res.json(montarResposta(req, updated))
   } catch (e) {
     next(e)
   }
