@@ -277,7 +277,12 @@ const fmt = {
   money: v => new Intl.NumberFormat("pt-BR", { style:"currency", currency:"BRL" }).format(v||0),
   ago:   d => { const m = Math.floor((Date.now()-new Date(d))/60000); return m<1?"agora":m<60?`${m}min`:m<1440?`${Math.floor(m/60)}h`:`${Math.floor(m/1440)}d`; },
 };
-const assetUrl = url => url?.startsWith("/uploads/") ? `${BASE.replace(/\/api$/, "")}${url}` : url;
+const assetUrl = url => {
+  if (!url) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/uploads/")) return `${BASE.replace(/\/api$/, "")}${url}`;
+  return `${API_BASE}/arquivos/${encodeURIComponent(url)}`;
+};
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 const logoSource = item => assetUrl(item?.logoUrl || item?.logo);
 
@@ -3588,7 +3593,7 @@ function DocsPage({ toast }) {
                 <td><Bdg s={d.acesso==="PUBLICO"?"Ativo":"Inativo"} /></td>
                 <td style={{fontSize:13,color:C.muted}}>{fmtSize(d.tamanho||0)}</td>
                 <td style={{fontSize:13,color:C.muted}}>{fmt.date(d.createdAt)}</td>
-                <td><a href={`https://ta-na-mao-1.onrender.com${d.url}`} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs"><Ic n="dl" s={13} /></a></td>
+                <td><a href={assetUrl(d.url)} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs"><Ic n="dl" s={13} /></a></td>
               </tr>
             ))}</tbody>
           </table>
@@ -5913,7 +5918,7 @@ function PortalMorador({ user }) {
               <div key={d.id} className="card" style={{padding:13,marginBottom:9,display:"flex",alignItems:"center",gap:11}}>
                 <div style={{width:34,height:34,background:"#dcfce7",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"#166534"}}>{d.tipo}</div>
                 <div style={{flex:1}}><div style={{fontSize:13,fontWeight:500}}>{d.nome}</div><div style={{fontSize:11,color:C.muted}}>{d.pasta} · {fmtSize(d.tamanho||0)}</div></div>
-                <a href={`https://ta-na-mao-1.onrender.com${d.url}`} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs portal-action"><Ic n="dl" s={13} c="#fff" /></a>
+                <a href={assetUrl(d.url)} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-xs portal-action"><Ic n="dl" s={13} c="#fff" /></a>
               </div>
             ))}
           </div>

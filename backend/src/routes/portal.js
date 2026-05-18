@@ -376,7 +376,7 @@ portalRouter.get('/:token', async (req, res, next) => {
     const condominio = await findCondominioByPortalToken(req.params.token)
     if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
     const config = normalizePortalConfig(condominio.portalConfig).portalMorador
-    if (!config.ativo || !config.permitirLink) return res.status(403).json({ error: 'Portal indisponivel', code: 'PORTAL_UNAVAILABLE' })
+    if (config.ativo === false || config.permitirLink === false) return res.status(403).json({ error: 'Portal indisponivel', code: 'PORTAL_UNAVAILABLE' })
     res.json(buildPortalPayload(condominio))
   } catch (e) { next(e) }
 })
@@ -386,7 +386,7 @@ portalRouter.post('/:token/chamados', uploadLimiter, multerUpload.array('fotos',
     const condominio = await findCondominioByPortalToken(req.params.token)
     if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
     const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
-    if (!portal.ativo || !portal.permitirLink || !portal.funcionalidades?.abrirChamado) {
+    if (portal.ativo === false || portal.permitirLink === false || !portal.funcionalidades?.abrirChamado) {
       return res.status(403).json({ error: 'Abertura de chamados indisponivel neste portal', code: 'PORTAL_TICKET_DISABLED' })
     }
 
@@ -464,7 +464,7 @@ portalRouter.post('/:token/voz/:id/votar', async (req, res, next) => {
     const condominio = await findCondominioByPortalToken(req.params.token)
     if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
     const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
-    if (!portal.ativo || !portal.permitirLink || !portal.funcionalidades?.vozMorador) {
+    if (portal.ativo === false || portal.permitirLink === false || !portal.funcionalidades?.vozMorador) {
       return res.status(403).json({ error: 'Voz do Morador indisponivel neste portal', code: 'VOICE_DISABLED' })
     }
     const voz = await prisma.vozMorador.findFirst({
@@ -496,7 +496,7 @@ portalRouter.post('/:token/voz/:id/comentar', async (req, res, next) => {
     const condominio = await findCondominioByPortalToken(req.params.token)
     if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
     const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
-    if (!portal.ativo || !portal.permitirLink || !portal.funcionalidades?.vozMorador) {
+    if (portal.ativo === false || portal.permitirLink === false || !portal.funcionalidades?.vozMorador) {
       return res.status(403).json({ error: 'Voz do Morador indisponivel neste portal', code: 'VOICE_DISABLED' })
     }
     const voz = await prisma.vozMorador.findFirst({

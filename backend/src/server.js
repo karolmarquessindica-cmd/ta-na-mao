@@ -22,9 +22,9 @@ import { relatorioRouter }   from './routes/relatorio.js'
 import { iaRouter }          from './routes/ia.js'
 import { condominioRouter }  from './routes/condominio.js'
 import { portalConfigCompatRouter } from './routes/portalConfigCompat.js'
-import { portalDocumentosSafeRouter } from './routes/portalDocumentosSafe.js'
 import { portalPublicSafeRouter } from './routes/portalPublicSafe.js'
 import { portalRouter }      from './routes/portal.js'
+import { arquivosPublicosRouter } from './routes/arquivosPublicos.js'
 import { checklistsRouter }  from './routes/checklists.js'
 import { agendadorRouter }   from './jobs/agendador.js'
 import { errorHandler, requestId } from './middleware/errorHandler.js'
@@ -102,6 +102,7 @@ app.use('/api/condominios',   portalDocumentosSafeRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/portal',        portalPublicSafeRouter)
 app.use('/api/portal',        portalRouter)
+app.use('/api/arquivos',      arquivosPublicosRouter)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/jobs',          agendadorRouter)
 
