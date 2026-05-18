@@ -176,7 +176,11 @@ async function buildPayload(condominio, req) {
   const portal = config.portalMorador
   const bannerIds = new Set(portal.bannerIds || [])
   const comunicadoIds = new Set(portal.comunicadoIds || [])
-  const allDocumentos = (condominio.documentos || []).map(item => portalDocument(item, portal))
+  const allDocumentos = await Promise.all((condominio.documentos || []).map(async item => {
+    const doc = portalDocument(item, portal)
+    const url = await publicFileUrl(req, doc.url)
+    return { ...doc, url, previewUrl: url, downloadUrl: url }
+  }))
 
   const documentos = allDocumentos.filter(doc => doc.visivelPortal && (doc.acesso === 'PUBLICO' || doc.tipoAcesso === 'MORADOR' || doc.tipoAcesso === 'IA_DO_PORTAL'))
   const documentosIa = allDocumentos.filter(doc => doc.usarIa && ['MORADOR', 'IA_DO_PORTAL'].includes(doc.tipoAcesso))
