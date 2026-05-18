@@ -4,6 +4,9 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import net from 'net'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { authRouter }        from './routes/auth.js'
 import { manutencaoRouter }  from './routes/manutencao.js'
 import { chamadoRouter }     from './routes/chamado.js'
@@ -35,6 +38,11 @@ import { apiLimiter }        from './middleware/rateLimiter.js'
 const app = express()
 app.set('trust proxy', 1)
 const PORT = process.env.PORT || 3001
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const uploadsPath = path.resolve(__dirname, '../uploads')
+fs.mkdirSync(uploadsPath, { recursive: true })
 
 function getRedisTarget() {
   try {
@@ -71,13 +79,19 @@ const corsOptions = {
 app.use(cors(corsOptions))
 app.options('*', cors(corsOptions))
 
-app.use(helmet())
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(helmet({ crossOriginResourcePolicy: false }))
+app.use(express.json({ limit: '25mb' }))
+app.use(express.urlencoded({ extended: true, limit: '25mb' }))
 
-if (!process.env.S3_BUCKET) {
-  app.use('/uploads', express.static('uploads'))
-}
+app.use('/uploads', express.static(uploadsPath, {
+  maxAge: '1d',
+  etag: true,
+  fallthrough: true,
+  setHeaders: (res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+  },
+}))
 
 app.use(requestId)
 app.use('/api', apiLimiter)
