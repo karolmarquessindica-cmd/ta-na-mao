@@ -6,6 +6,8 @@ import { authenticate, requireRole } from '../middleware/auth.js'
 export const portalConfigCompatRouter = Router()
 portalConfigCompatRouter.use(authenticate)
 
+const DEFAULT_FRONTEND_URL = 'https://ta-na-mao-k9bvaiel-karol-s-projects-0e70096b.vercel.app'
+
 const portalDefault = {
   ativo: true,
   banners: true,
@@ -118,7 +120,7 @@ function ensurePortalToken(config) {
 function portalLink(req, config) {
   const token = config?.portalMorador?.token
   if (!token) return null
-  const base = process.env.FRONTEND_URL
+
   return `${base.replace(/\/$/, '')}/?portal=${token}`
 }
 
@@ -188,6 +190,7 @@ function mergePortalConfig(currentConfig, incomingConfig = {}) {
 function portalConfigResponse(req, condominio) {
   const config = normalizePortalConfig(condominio.portalConfig)
   const portal = config.portalMorador
+  const link = portalLink(req, config)
   const banners = (condominio.banners || []).map(banner => ({
     ...banner,
     descricao: portal.bannerMeta?.[banner.id]?.descricao || '',
@@ -205,8 +208,8 @@ function portalConfigResponse(req, condominio) {
   return {
     config,
     logoUrl: condominio.logo || null,
-    link: portalLink(req, config),
-    qrCodeUrl: portal.token ? `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(portalLink(req, config))}` : null,
+    link,
+    qrCodeUrl: link ? `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(link)}` : null,
     resumo: {
       ativo: Boolean(portal.ativo),
       bannersConfigurados: banners.filter(b => b.visivelPortal && b.ativo).length,

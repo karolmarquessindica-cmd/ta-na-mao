@@ -1,5 +1,4 @@
 import { Router } from 'express'
-import { prisma } from '../lib/prisma.js'
 
 export const portalPublicSafeRouter = Router()
 
@@ -150,7 +149,6 @@ function publicContacts(condominio, portal) {
   return [...configured, ...fromUsers]
 }
 
-function buildPayload(condominio) {
   const config = normalizePortalConfig(condominio.portalConfig)
   const portal = config.portalMorador
   const bannerIds = new Set(portal.bannerIds || [])
@@ -164,7 +162,6 @@ function buildPayload(condominio) {
     condominio: {
       id: condominio.id,
       nome: condominio.nome,
-      logoUrl: condominio.logo || null,
       endereco: condominio.endereco,
       cidade: condominio.cidade,
       estado: condominio.estado,
@@ -172,7 +169,6 @@ function buildPayload(condominio) {
       email: condominio.email,
     },
     config: portal,
-    banners: (condominio.banners || []).filter(item => bannerIds.has(item.id)).map(item => ({ ...item, descricao: portal.bannerMeta?.[item.id]?.descricao || '' })),
     comunicados: (condominio.comunicados || []).filter(item => comunicadoIds.has(item.id)).map(item => ({ ...item, portalMeta: portal.comunicadoMeta?.[item.id] || {} })),
     documentos,
     documentosIa,
@@ -182,6 +178,7 @@ function buildPayload(condominio) {
   }
 }
 
+< main
 portalPublicSafeRouter.get('/:token', async (req, res, next) => {
   try {
     const condominio = await findCondominioByPortalToken(req.params.token)
@@ -191,9 +188,3 @@ portalPublicSafeRouter.get('/:token', async (req, res, next) => {
     if (portal.ativo === false || portal.permitirLink === false) {
       return res.status(403).json({ error: 'Portal indisponivel', code: 'PORTAL_UNAVAILABLE' })
     }
-
-    res.json(buildPayload(condominio))
-  } catch (e) {
-    next(e)
-  }
-})
