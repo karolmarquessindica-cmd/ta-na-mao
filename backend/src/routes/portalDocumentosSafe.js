@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import crypto from 'crypto'
 import path from 'path'
+import fs from 'fs'
 import { prisma } from '../lib/prisma.js'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { uploadLimiter } from '../middleware/rateLimiter.js'
@@ -9,6 +10,8 @@ import { validateFileMagicBytes, validateBufferMagicBytes } from '../lib/validat
 
 export const portalDocumentosSafeRouter = Router()
 portalDocumentosSafeRouter.use(authenticate)
+
+const DEFAULT_FRONTEND_URL = 'https://www.tonocondominio.com.br'
 
 const safeDocumentoSelect = {
   id: true,
@@ -52,6 +55,9 @@ function portalConfig(config = {}) {
     ...base,
     portalMorador: {
       ...portal,
+      ativo: portal.ativo !== false,
+      permitirLink: portal.permitirLink !== false,
+      permitirQrCode: portal.permitirQrCode !== false,
       token: portal.token || crypto.randomBytes(24).toString('base64url'),
       bannerIds: Array.isArray(portal.bannerIds) ? portal.bannerIds : [],
       comunicadoIds: Array.isArray(portal.comunicadoIds) ? portal.comunicadoIds : [],
@@ -66,14 +72,14 @@ function portalConfig(config = {}) {
   }
 }
 
-function portalLink(req, config) {
+function portalLink(config) {
   const token = config?.portalMorador?.token
   if (!token) return null
-  const base = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`.replace(':3001', ':5173')
+  const base = process.env.FRONTEND_URL || DEFAULT_FRONTEND_URL
   return `${base.replace(/\/$/, '')}/?portal=${token}`
 }
 
-function montarResposta(req, condominio) {
+function montarResposta(condominio) {
   const config = portalConfig(condominio.portalConfig)
   const portal = config.portalMorador
   const documentos = (condominio.documentos || []).map(doc => {
@@ -90,11 +96,12 @@ function montarResposta(req, condominio) {
       tipoDocumento: meta.tipoDocumento || doc.tipo || 'Arquivo',
     }
   })
+  const link = portalLink(config)
   return {
     config,
     logoUrl: condominio.logo || null,
-    link: portalLink(req, config),
-    qrCodeUrl: portal.token ? `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(portalLink(req, config))}` : null,
+    link,
+    qrCodeUrl: link ? `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(link)}` : null,
     resumo: {
       ativo: Boolean(portal.ativo),
       bannersConfigurados: (condominio.banners || []).filter(b => (portal.bannerIds || []).includes(b.id) && b.ativo).length,
@@ -109,10 +116,10 @@ function montarResposta(req, condominio) {
   }
 }
 
-async function buscarCondominio(req, id, include = {}) {
+async function buscarCondominio(req, id, include = undefined) {
   return prisma.condominio.findFirst({
     where: { id, OR: [{ users: { some: { id: req.user.id } } }, { acessos: { some: { userId: req.user.id } } }] },
-    include,
+    ...(include ? { include } : {}),
   })
 }
 
@@ -123,7 +130,10 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
     if (!req.file) return res.status(400).json({ error: 'Arquivo obrigatorio' })
 
     const validation = isS3Enabled ? await validateBufferMagicBytes(req.file.buffer) : await validateFileMagicBytes(req.file.path)
-    if (!validation.valid) return res.status(400).json({ error: `Tipo de arquivo nao permitido: ${validation.detectedType || req.file.mimetype}` })
+    if (!validation.valid) {
+      if (!isS3Enabled && req.file.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path)
+      return res.status(400).json({ error: `Tipo de arquivo nao permitido: ${validation.detectedType || req.file.mimetype}` })
+    }
 
     const visivelPortal = boolValue(req.body.visivelPortal)
     const usarIa = boolValue(req.body.usarIa)
@@ -160,7 +170,7 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
       include: includePortal,
     })
 
-    res.status(201).json(montarResposta(req, updated))
+    res.status(201).json(montarResposta(updated))
   } catch (e) {
     next(e)
   }
