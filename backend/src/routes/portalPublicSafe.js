@@ -9,6 +9,8 @@ import { validateFileMagicBytes, validateBufferMagicBytes } from '../lib/validat
 
 export const portalPublicSafeRouter = Router()
 
+const TICKET_CONFIRMATION_MESSAGE = 'Obrigada por nos ajudar a cuidar do seu patrimônio.'
+
 const safeDocumentoSelect = {
   id: true,
   nome: true,
@@ -315,7 +317,8 @@ portalPublicSafeRouter.post('/:token/chamados', uploadLimiter, multerUpload.arra
       protocolo: chamado.id.slice(0, 8).toUpperCase(),
       status: chamado.status,
       createdAt: chamado.createdAt,
-      mensagem: uploads.length ? 'Chamado enviado para a administracao do condominio.' : 'Chamado enviado. As fotos nao puderam ser anexadas neste momento.',
+      mensagem: TICKET_CONFIRMATION_MESSAGE,
+      observacao: uploads.length ? null : 'Chamado recebido. As fotos nao puderam ser anexadas neste momento.',
     })
   } catch (e) {
     next(e)
