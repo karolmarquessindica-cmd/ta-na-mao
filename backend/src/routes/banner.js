@@ -6,10 +6,32 @@ import { authenticate } from '../middleware/auth.js'
 import { parsePagination, paginatedResponse } from '../lib/pagination.js'
 import { uploadLimiter } from '../middleware/rateLimiter.js'
 import { validateBufferMagicBytes, validateFileMagicBytes } from '../lib/validateUpload.js'
-import { deleteFile, isS3Enabled, multerUpload, storageKeyFromUrl, uploadFile } from '../lib/storage.js'
+import { deleteFile, getSignedUrl, isS3Enabled, multerUpload, storageKeyFromUrl, uploadFile } from '../lib/storage.js'
 
 export const bannerRouter = Router()
 bannerRouter.use(authenticate)
+
+function apiOrigin(req) {
+  return `${req.protocol}://${req.get('host')}`
+}
+
+async function publicFileUrl(req, value) {
+  if (!value) return value
+  if (/^https?:\/\//i.test(value)) return value
+  if (value.startsWith('/uploads/')) return `${apiOrigin(req)}${value}`
+  if (isS3Enabled) {
+    const signed = await getSignedUrl(value).catch(() => null)
+    if (signed) return signed
+    return `${apiOrigin(req)}/api/arquivos/${value}`
+  }
+  return `${apiOrigin(req)}${value.startsWith('/') ? value : `/${value}`}`
+}
+
+async function withPublicImage(req, item) {
+  if (!item) return item
+  const imagemUrl = await publicFileUrl(req, item.imagem)
+  return { ...item, imagem: imagemUrl, imagemOriginal: item.imagem, imagemUrl }
+}
 
 function isImageUpload(file, validation) {
   const mimeOk = file?.mimetype?.startsWith('image/')
@@ -27,7 +49,8 @@ bannerRouter.get('/', async (req, res, next) => {
       prisma.banner.findMany({ where, orderBy: { ordem: 'asc' }, skip, take: limit }),
       prisma.banner.count({ where }),
     ])
-    res.json(paginatedResponse({ data, total, page, limit }))
+    const publicData = await Promise.all(data.map(item => withPublicImage(req, item)))
+    res.json(paginatedResponse({ data: publicData, total, page, limit }))
   } catch (e) { next(e) }
 })
 
@@ -40,7 +63,7 @@ bannerRouter.post('/', async (req, res, next) => {
     const item = await prisma.banner.create({
       data: { titulo, imagem, link, ordem: ordem || 1, ativo: ativo ?? true, condominioId: req.user.condominioId }
     })
-    res.status(201).json(item)
+    res.status(201).json(await withPublicImage(req, item))
   } catch (e) { next(e) }
 })
 
@@ -62,7 +85,8 @@ bannerRouter.post('/imagem', uploadLimiter, multerUpload.single('imagem'), async
     }
 
     const { url } = await uploadFile(file, 'banners')
-    res.status(201).json({ url })
+    const imagemUrl = await publicFileUrl(req, url)
+    res.status(201).json({ url, imagem: imagemUrl, imagemUrl })
   } catch (e) { next(e) }
 })
 
@@ -76,7 +100,7 @@ bannerRouter.patch('/:id', async (req, res, next) => {
       await deleteFile(storageKeyFromUrl(existing.imagem))
     }
     const item = await prisma.banner.update({ where: { id: req.params.id }, data: req.body })
-    res.json(item)
+    res.json(await withPublicImage(req, item))
   } catch (e) { next(e) }
 })
 
