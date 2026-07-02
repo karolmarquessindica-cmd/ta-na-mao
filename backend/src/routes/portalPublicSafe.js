@@ -25,6 +25,23 @@ const safeDocumentoSelect = {
   condominioId: true,
 }
 
+const safeManutencaoSelect = {
+  id: true,
+  titulo: true,
+  descricao: true,
+  tipo: true,
+  status: true,
+  prioridade: true,
+  responsavel: true,
+  empresa: true,
+  dataVencimento: true,
+  dataConclusao: true,
+  observacoes: true,
+  createdAt: true,
+  updatedAt: true,
+  condominioId: true,
+}
+
 const portalMoradorDefault = {
   ativo: true,
   permitirLink: true,
@@ -94,6 +111,12 @@ const includeSafe = {
   banners: { where: { ativo: true }, orderBy: [{ ordem: 'asc' }, { createdAt: 'desc' }] },
   comunicados: { orderBy: [{ fixado: 'desc' }, { createdAt: 'desc' }] },
   documentos: { select: safeDocumentoSelect, orderBy: [{ pasta: 'asc' }, { nome: 'asc' }] },
+  manutencoes: {
+    select: safeManutencaoSelect,
+    where: { status: { not: 'CONCLUIDA' } },
+    orderBy: [{ dataVencimento: 'asc' }, { createdAt: 'desc' }],
+    take: 60,
+  },
   users: {
     where: { ativo: true, role: { in: ['ADMIN', 'SINDICO'] } },
     select: { id: true, nome: true, role: true, telefone: true, whatsapp: true, email: true },
@@ -173,6 +196,25 @@ function publicContacts(condominio, portal) {
   return [...configured, ...fromUsers]
 }
 
+function publicMaintenance(item) {
+  const date = item.dataVencimento || item.createdAt
+  return {
+    id: item.id,
+    titulo: item.titulo,
+    nome: item.titulo,
+    descricao: item.descricao || item.observacoes || '',
+    tipo: item.tipo,
+    status: item.status,
+    prioridade: item.prioridade,
+    responsavel: item.responsavel || item.empresa || 'Responsável a definir',
+    data: date,
+    dataPrevista: date,
+    dataVencimento: item.dataVencimento,
+    dataConclusao: item.dataConclusao,
+    publicadoEm: item.createdAt,
+  }
+}
+
 async function buildPayload(condominio, req) {
   const config = normalizePortalConfig(condominio.portalConfig)
   const portal = config.portalMorador
@@ -193,6 +235,9 @@ async function buildPayload(condominio, req) {
       imagem: await publicFileUrl(req, item.imagem),
       descricao: portal.bannerMeta?.[item.id]?.descricao || '',
     })))
+  const manutencoesPrevistas = portal.funcionalidades?.planoManutencao === false || portal.informacoes?.manutencoesPrevistas === false
+    ? []
+    : (condominio.manutencoes || []).map(publicMaintenance)
 
   return {
     condominio: {
@@ -211,7 +256,7 @@ async function buildPayload(condominio, req) {
     documentos,
     documentosIa,
     responsaveis: publicContacts(condominio, portal),
-    manutencoesPrevistas: [],
+    manutencoesPrevistas,
     vozes: [],
   }
 }
