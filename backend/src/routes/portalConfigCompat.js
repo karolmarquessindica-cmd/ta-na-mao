@@ -6,7 +6,7 @@ import { authenticate, requireRole } from '../middleware/auth.js'
 export const portalConfigCompatRouter = Router()
 portalConfigCompatRouter.use(authenticate)
 
-const DEFAULT_FRONTEND_URL = 'https://www.tonocondominio.com.br'
+const DEFAULT_FRONTEND_URL = 'https://ta-na-mao-wine.vercel.app'
 
 const portalDefault = {
   ativo: true,
@@ -120,7 +120,7 @@ function ensurePortalToken(config) {
 function portalLink(req, config) {
   const token = config?.portalMorador?.token
   if (!token) return null
-  const base = process.env.FRONTEND_URL || DEFAULT_FRONTEND_URL
+  const base = process.env.PUBLIC_PORTAL_URL || process.env.APP_FRONTEND_URL || DEFAULT_FRONTEND_URL
   return `${base.replace(/\/$/, '')}/?portal=${token}`
 }
 
