@@ -34,6 +34,7 @@ import { checklistsRouter }  from './routes/checklists.js'
 import { agendadorRouter }   from './jobs/agendador.js'
 import { errorHandler, requestId } from './middleware/errorHandler.js'
 import { apiLimiter }        from './middleware/rateLimiter.js'
+import { ensureBootstrapData } from './lib/bootstrap.js'
 
 const app = express()
 app.set('trust proxy', 1)
@@ -90,7 +91,7 @@ app.use('/uploads', express.static(uploadsPath, {
   setHeaders: (res) => {
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
-  },
+  }
 }))
 
 app.use(requestId)
@@ -128,6 +129,7 @@ app.use(errorHandler)
 
 app.listen(PORT, async () => {
   console.log(`\n🏢 Tá na Mão API v2.0 → http://localhost:${PORT}`)
+  await ensureBootstrapData()
   if (process.env.DISABLE_JOBS === 'true') {
     process.env.JOBS_BACKEND = 'disabled'
     console.log('[boot] Jobs desativados por DISABLE_JOBS=true')
