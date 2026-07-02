@@ -117,11 +117,10 @@ function ensurePortalToken(config) {
   return next
 }
 
-function portalLink(req, config) {
-  const token = config?.portalMorador?.token
-  if (!token) return null
+function portalLink(req, config, condominio) {
+  if (!condominio?.id) return null
   const base = process.env.PUBLIC_PORTAL_URL || process.env.APP_FRONTEND_URL || DEFAULT_FRONTEND_URL
-  return `${base.replace(/\/$/, '')}/?portal=${token}`
+  return `${base.replace(/\/$/, '')}/?portal=${condominio.id}`
 }
 
 function documentAccessType(value) {
@@ -190,7 +189,7 @@ function mergePortalConfig(currentConfig, incomingConfig = {}) {
 function portalConfigResponse(req, condominio) {
   const config = normalizePortalConfig(condominio.portalConfig)
   const portal = config.portalMorador
-  const link = portalLink(req, config)
+  const link = portalLink(req, config, condominio)
   const banners = (condominio.banners || []).map(banner => ({
     ...banner,
     descricao: portal.bannerMeta?.[banner.id]?.descricao || '',
