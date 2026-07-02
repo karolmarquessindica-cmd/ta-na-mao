@@ -9,6 +9,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function () {
+        var OLD_API = 'https://ta-na-mao-1.onrender.com';
+        var NEW_API = 'https://ta-na-mao-9bii.onrender.com';
+        var nativeFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+          if (typeof input === 'string') {
+            input = input.replace(OLD_API, NEW_API);
+          } else if (input && input.url && input.url.indexOf(OLD_API) === 0) {
+            input = new Request(input.url.replace(OLD_API, NEW_API), input);
+          }
+          return nativeFetch(input, init);
+        };
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
