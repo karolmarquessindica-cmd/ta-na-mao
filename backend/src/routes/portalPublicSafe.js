@@ -10,6 +10,7 @@ import { validateFileMagicBytes, validateBufferMagicBytes } from '../lib/validat
 export const portalPublicSafeRouter = Router()
 
 const TICKET_CONFIRMATION_MESSAGE = 'Obrigada por nos ajudar a cuidar do seu patrimônio.'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const safeDocumentoSelect = {
   id: true,
@@ -125,15 +126,25 @@ const includeSafe = {
 }
 
 async function findCondominioByPortalToken(token) {
+  const cleanToken = String(token || '').trim()
+
+  if (UUID_RE.test(cleanToken)) {
+    const byId = await prisma.condominio.findUnique({
+      where: { id: cleanToken },
+      include: includeSafe,
+    }).catch(() => null)
+    if (byId) return byId
+  }
+
   const byJson = await prisma.condominio.findFirst({
-    where: { portalConfig: { path: ['portalMorador', 'token'], equals: token } },
+    where: { portalConfig: { path: ['portalMorador', 'token'], equals: cleanToken } },
     include: includeSafe,
   }).catch(() => null)
 
   if (byJson) return byJson
 
   const condominios = await prisma.condominio.findMany({ include: includeSafe })
-  return condominios.find(item => normalizePortalConfig(item.portalConfig).portalMorador.token === token) || null
+  return condominios.find(item => normalizePortalConfig(item.portalConfig).portalMorador.token === cleanToken) || null
 }
 
 function apiOrigin(req) {
