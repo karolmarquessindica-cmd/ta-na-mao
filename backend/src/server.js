@@ -118,13 +118,15 @@ app.use('/api/condominios',   portalConfigSaveSafeRouter)
 app.use('/api/condominios',   portalConfigCompatRouter)
 app.use('/api/condominios',   portalDocumentosSafeRouter)
 app.use('/api/condominios',   condominioRouter)
+app.use('/api/portal-public', portalPublicSafeRouter)
+app.use('/api/public/portal', portalPublicSafeRouter)
 app.use('/api/portal',        portalPublicSafeRouter)
 app.use('/api/portal',        portalRouter)
 app.use('/api/arquivos',      arquivosPublicosRouter)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/jobs',          agendadorRouter)
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.0', ts: new Date().toISOString() }))
+app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.1', ts: new Date().toISOString() }))
 app.use(errorHandler)
 
 app.listen(PORT, async () => {
