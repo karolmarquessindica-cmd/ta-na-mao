@@ -114,7 +114,7 @@ const includeSafe = {
   documentos: { select: safeDocumentoSelect, orderBy: [{ pasta: 'asc' }, { nome: 'asc' }] },
   manutencoes: {
     select: safeManutencaoSelect,
-    where: { status: { not: 'CONCLUIDA' } },
+    where: { status: { not: 'CONCLUIDO' } },
     orderBy: [{ dataVencimento: 'asc' }, { createdAt: 'desc' }],
     take: 60,
   },
