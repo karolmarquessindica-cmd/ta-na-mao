@@ -3,11 +3,34 @@ import { prisma } from './prisma.js'
 
 const ADMIN_EMAIL = (process.env.BOOTSTRAP_ADMIN_EMAIL || 'Karolmarquessindica@gmail.com').trim().toLowerCase()
 const ADMIN_PASSWORD = process.env.BOOTSTRAP_ADMIN_PASSWORD
+const LEGACY_ADMIN_EMAIL = 'admin@horizonte.com'
+
+async function deactivateLegacyAdmin() {
+  const legacy = await prisma.user.findUnique({ where: { email: LEGACY_ADMIN_EMAIL } })
+  if (!legacy) return
+
+  await prisma.$transaction([
+    prisma.refreshToken.deleteMany({ where: { userId: legacy.id } }),
+    prisma.condominioAcesso.deleteMany({ where: { userId: legacy.id } }),
+    prisma.user.update({
+      where: { id: legacy.id },
+      data: {
+        ativo: false,
+        email: `desativado-${legacy.id}@tanamao.local`,
+        role: 'MORADOR',
+      },
+    }),
+  ])
+
+  console.log(`[bootstrap] Usuário legado desativado: ${LEGACY_ADMIN_EMAIL}`)
+}
 
 export async function ensureBootstrapData() {
   if (process.env.DISABLE_BOOTSTRAP === 'true') return
 
   try {
+    await deactivateLegacyAdmin()
+
     const existing = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL } })
     if (existing) {
       console.log(`[bootstrap] Usuário master já existe: ${ADMIN_EMAIL}`)
