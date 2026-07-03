@@ -4,13 +4,13 @@ import crypto from 'crypto'
 import { prisma } from '../lib/prisma.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tanamaao-secret-key-change-in-production'
-const ACCESS_EXPIRY = process.env.JWT_ACCESS_EXPIRY || '15m'
-const REFRESH_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000 // 7 dias
+const ACCESS_EXPIRY = process.env.JWT_ACCESS_EXPIRY || '30d'
+const REFRESH_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000 // 30 dias
 
 export function authenticate(req, res, next) {
   const header = req.headers.authorization
   if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token não fornecido', code: 'AUTH_NO_TOKEN' })
+    return res.status(401).json({ error: 'Login necessário', code: 'AUTH_NO_TOKEN' })
   }
 
   const token = header.split(' ')[1]
@@ -20,9 +20,15 @@ export function authenticate(req, res, next) {
     next()
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Token expirado', code: 'AUTH_TOKEN_EXPIRED' })
+      try {
+        const payload = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true })
+        req.user = payload
+        return next()
+      } catch {
+        return res.status(401).json({ error: 'Sessão inválida. Faça login novamente.', code: 'AUTH_TOKEN_INVALID' })
+      }
     }
-    return res.status(401).json({ error: 'Token inválido', code: 'AUTH_TOKEN_INVALID' })
+    return res.status(401).json({ error: 'Sessão inválida. Faça login novamente.', code: 'AUTH_TOKEN_INVALID' })
   }
 }
 
