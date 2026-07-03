@@ -338,6 +338,21 @@ portalPublicSafeRouter.post('/:token/chamados', uploadLimiter, multerUpload.arra
     const descricao = String(req.body?.descricao || '').trim()
     const local = String(req.body?.local || '').trim()
     const categoria = String(req.body?.categoria || 'MANUTENCAO').toUpperCase()
+    const nomeMorador = String(req.body?.nome || req.body?.moradorNome || '').trim()
+    const apartamento = String(req.body?.apartamento || req.body?.ape || req.body?.unidade || '').trim()
+    const bloco = String(req.body?.bloco || '').trim()
+    const whatsapp = String(req.body?.whatsapp || req.body?.telefone || '').trim()
+    const localCompleto = [bloco, apartamento, local].filter(Boolean).join(' - ')
+    const contatoLinhas = [
+      nomeMorador ? `Nome: ${nomeMorador}` : null,
+      apartamento ? `Apartamento: ${apartamento}` : null,
+      bloco ? `Bloco: ${bloco}` : null,
+      whatsapp ? `WhatsApp: ${whatsapp}` : null,
+      local ? `Local informado: ${local}` : null,
+    ].filter(Boolean)
+    const descricaoCompleta = contatoLinhas.length
+      ? `${descricao}\n\nDados do morador:\n${contatoLinhas.join('\n')}`
+      : descricao
 
     if (!descricao) return res.status(400).json({ error: 'Descricao do chamado e obrigatoria', code: 'VALIDATION_ERROR' })
 
@@ -357,14 +372,14 @@ portalPublicSafeRouter.post('/:token/chamados', uploadLimiter, multerUpload.arra
     const morador = await portalAnonymousUser(condominio.id)
     const chamado = await prisma.chamado.create({
       data: {
-        titulo: `Chamado pelo portal${local ? ` - ${local}` : ''}`,
-        descricao,
+        titulo: `Chamado pelo portal${localCompleto ? ` - ${localCompleto}` : ''}`,
+        descricao: descricaoCompleta,
         categoria: ['MANUTENCAO', 'RECLAMACAO', 'SUGESTAO'].includes(categoria) ? categoria : 'MANUTENCAO',
         prioridade: 'MEDIA',
         fotos: uploads,
         moradorId: morador.id,
         condominioId: condominio.id,
-        historico: { create: { acao: 'Chamado aberto pelo Portal do Morador', nota: local || null } },
+        historico: { create: { acao: 'Chamado aberto pelo Portal do Morador', nota: contatoLinhas.join(' | ') || localCompleto || null } },
       },
     })
 
