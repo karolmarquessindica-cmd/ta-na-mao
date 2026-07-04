@@ -1,5 +1,9 @@
-export function aiProviderName() {
+export function geminiModelName() {
   return process.env.GEMINI_MODEL || 'gemini-1.5-flash'
+}
+
+export function aiProviderName() {
+  return geminiModelName()
 }
 
 export async function askExternalAI({ system, messages, maxTokens = 1100 }) {
@@ -7,7 +11,7 @@ export async function askExternalAI({ system, messages, maxTokens = 1100 }) {
   const key = process.env[envName]
   if (!key) return null
 
-  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash'
+  const model = geminiModelName()
   const base = ['https://generativelanguage.googleapis.com', 'v1beta', 'models'].join('/')
   const endpoint = `${base}/${model}:generateContent?key=${key}`
 
