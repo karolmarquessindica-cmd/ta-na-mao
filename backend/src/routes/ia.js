@@ -3,6 +3,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
+import { askExternalAI, geminiModelName } from '../lib/aiProvider.js'
 
 export const iaRouter = Router()
 iaRouter.use(authenticate)
@@ -15,9 +16,6 @@ const chatSchema = z.object({
     content: z.string().trim().max(1500),
   })).max(8).optional(),
 })
-
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest'
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 
 function formatDate(date) {
   if (!date) return null
@@ -324,27 +322,24 @@ function localAnswer(message, context) {
     return `Encontrei estes avisos e sugestoes:\n\nComunicados:\n${section('Comunicados recentes')}\n\nVoz do Morador:\n${section('Sugestoes da Voz do Morador')}`
   }
 
-  return `Posso ajudar com documentos, chamados, comunicados, taxas, reservas e regras do condominio. Para eu responder com base em um PDF, o documento precisa ser enviado e marcado como fonte da IA.`
+  return `Não encontrei essa informação nos documentos disponíveis do condomínio. Recomendo confirmar com a administração ou com o síndico.`
 }
 
-async function askAnthropic({ message, history, canal, context }) {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) return null
-
+async function askGemini({ message, history, canal, context }) {
   const system = [
-    'Voce e o assistente IA do SaaS condominial Ta na Mao.',
-    'Responda sempre em portugues do Brasil, com tom claro, educado e objetivo.',
-    'Use somente os dados do contexto. Se nao houver dado suficiente, diga isso e oriente o proximo passo.',
-    'Quando houver Fontes documentais da IA extraidas de PDFs, priorize esses trechos acima de qualquer outro dado.',
-    'Sempre que responder com base em PDF, cite o nome do documento usado como fonte.',
-    'Se o modo for ANALISE_FINANCEIRA_DOCUMENTAL, aja como analista financeiro condominial: compare meses, agrupe receitas/despesas, destaque aumentos relevantes, fornecedores recorrentes, valores duplicados, gastos fora da média e pontos que exigem conferência humana.',
-    'Em auditoria financeira, separe a resposta em: Resumo, Comparativo, Pontos de atenção, Possíveis inconsistências, Fontes utilizadas e Limitações da análise.',
-    'Nunca acuse fraude. Use expressões como indício, ponto de atenção, divergência aparente ou item que exige conferência documental.',
-    'Nunca revele dados privados de outros moradores. Para moradores, trate apenas dados do proprio usuario e documentos publicos.',
-    'Nao invente regras, valores, datas, status ou fontes. Se o PDF nao trouxer valor claro, diga que o documento não permite concluir com segurança.',
+    'Você é a IA oficial do sistema Tô na Mão, especializada em gestão condominial.',
+    'Responda sempre em português do Brasil, com tom claro, educado, objetivo e profissional.',
+    'Use prioritariamente as informações presentes nos documentos do condomínio.',
+    'Prioridade das fontes: Convenção do Condomínio, Regimento Interno, Atas de Assembleia, Comunicados Oficiais, dados cadastrados no sistema e legislação aplicável quando necessário.',
+    'Nunca invente regras, artigos, valores, datas, decisões de assembleia ou fontes.',
+    'Se a informação não existir na base de conhecimento, informe claramente que não encontrou essa informação nos documentos disponíveis do condomínio e recomende confirmar com a administração ou com o síndico.',
+    'Sempre que possível, cite a fonte: Conforme o Regimento Interno, Segundo a Ata, ou Conforme o documento disponível.',
+    'Quando a pergunta envolver financeiro de morador, responda apenas com dados da própria unidade e nunca exponha dados de terceiros.',
+    'Quando depender de interpretação jurídica, explique o que consta nos documentos e recomende análise da administração ou orientação jurídica, sem parecer definitivo.',
+    'Em reservas, informe apenas disponibilidade, horários e regras presentes no sistema. Não confirme reserva sem dado do sistema.',
     `Canal atual: ${canal}.`,
     '',
-    'Contexto do condominio:',
+    'Contexto do condomínio:',
     context,
   ].join('\n')
 
@@ -353,29 +348,11 @@ async function askAnthropic({ message, history, canal, context }) {
     { role: 'user', content: message },
   ]
 
-  const response = await fetch(ANTHROPIC_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: isFinancialQuestion(message) ? 1700 : 1100,
-      temperature: 0.1,
-      system,
-      messages,
-    }),
+  return askExternalAI({
+    system,
+    messages,
+    maxTokens: isFinancialQuestion(message) ? 1700 : 1100,
   })
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '')
-    throw new Error(`Falha na IA: ${response.status} ${body.slice(0, 180)}`)
-  }
-
-  const data = await response.json()
-  return data.content?.find(part => part.type === 'text')?.text || null
 }
 
 iaRouter.post('/chat', async (req, res, next) => {
@@ -386,8 +363,8 @@ iaRouter.post('/chat', async (req, res, next) => {
     let answer = null
     let source = 'local'
     try {
-      answer = await askAnthropic({ ...input, context })
-      if (answer) source = 'anthropic'
+      answer = await askGemini({ ...input, context })
+      if (answer) source = 'gemini'
     } catch (e) {
       console.warn('[ia] usando resposta local:', e.message)
     }
@@ -397,7 +374,7 @@ iaRouter.post('/chat', async (req, res, next) => {
     res.json({
       answer,
       source,
-      model: source === 'anthropic' ? MODEL : 'local-context',
+      model: source === 'gemini' ? geminiModelName() : 'local-context',
     })
   } catch (e) {
     if (e instanceof z.ZodError) {
