@@ -2,6 +2,7 @@ import { Router } from 'express'
 import crypto from 'crypto'
 import path from 'path'
 import fs from 'fs'
+import pdf from 'pdf-parse'
 import { prisma } from '../lib/prisma.js'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { uploadLimiter } from '../middleware/rateLimiter.js'
@@ -47,6 +48,20 @@ function tipoArquivo(file, fallback = '') {
 function tipoAcesso(value) {
   const v = String(value || '').toUpperCase()
   return ['APENAS_SINDICO', 'MORADOR', 'IA_INTERNA', 'IA_DO_PORTAL'].includes(v) ? v : 'APENAS_SINDICO'
+}
+
+async function extrairTextoPdf(file) {
+  try {
+    const isPdf = file?.mimetype === 'application/pdf' || path.extname(file?.originalname || '').toLowerCase() === '.pdf'
+    if (!isPdf) return null
+    const buffer = file.buffer || (file.path && fs.existsSync(file.path) ? fs.readFileSync(file.path) : null)
+    if (!buffer) return null
+    const parsed = await pdf(buffer)
+    return parsed?.text?.slice(0, 120000) || null
+  } catch (error) {
+    console.warn('[portal-documentos] erro ao extrair texto do PDF:', error.message)
+    return null
+  }
 }
 
 function portalConfig(config = {}) {
@@ -193,6 +208,7 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
     const categoria = String(req.body.categoria || 'Geral').trim() || 'Geral'
     const tipoDocumento = tipoArquivo(req.file, req.body.tipoDocumento)
     const publicadoEm = req.body.publicadoEm || new Date().toISOString()
+    const textoExtraido = usarIa ? await extrairTextoPdf(req.file) : null
     const uploaded = await uploadFileResilient(req.file, 'portal-docs')
     const config = portalConfig(condominio.portalConfig)
 
@@ -205,7 +221,8 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
         descricao: req.body.descricao || 'Documento configurado no Portal do Morador',
         url: uploaded.url,
         tamanho: req.file.size,
-        usarComoFonteIA: usarIa,
+        textoExtraido,
+        usarComoFonteIA: Boolean(usarIa && textoExtraido),
         categoriaIA: usarIa ? categoria : null,
         condominioId: condominio.id,
       },
@@ -213,7 +230,7 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
     })
 
     if (visivelPortal) config.portalMorador.documentoIds = [...new Set([...(config.portalMorador.documentoIds || []), documento.id])]
-    config.portalMorador.documentoMeta[documento.id] = { titulo, categoria, publicadoEm, visivelPortal, usarIa, tipoAcesso: acesso, tipoDocumento }
+    config.portalMorador.documentoMeta[documento.id] = { titulo, categoria, publicadoEm, visivelPortal, usarIa: Boolean(usarIa && textoExtraido), tipoAcesso: acesso, tipoDocumento }
 
     const updated = await prisma.condominio.update({
       where: { id: condominio.id },
