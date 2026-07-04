@@ -12,8 +12,18 @@
   const wrap=slides[0].parentElement;
   const home=wrap&&wrap.parentElement;
   if(home&&wrap&&home.firstElementChild!==wrap)home.insertBefore(wrap,home.firstElementChild);
-  wrap.style.marginBottom='16px';
-  slides.forEach(sl=>{sl.style.width='100%';sl.style.display=sl.classList.contains('on')?'block':'none';const btn=sl.querySelector('button');if(btn){btn.style.height='auto';btn.style.aspectRatio='1450 / 820';btn.style.minHeight='0';btn.style.borderRadius='22px';}const img=sl.querySelector('img');if(img){img.style.width='100%';img.style.height='100%';img.style.objectFit='cover';img.style.objectPosition='center';img.style.display='block';img.onerror=()=>{if(!sessionStorage.getItem('tnm_banner_reload')){sessionStorage.setItem('tnm_banner_reload','1');location.reload()}}}});
+  if(wrap)wrap.style.marginBottom='16px';
+  slides.forEach(sl=>{
+   sl.style.width='100%';
+   sl.style.display=sl.classList.contains('on')?'block':'none';
+   const btn=sl.querySelector('button');
+   if(btn){
+    btn.style.height='auto';btn.style.aspectRatio='1450 / 820';btn.style.minHeight='0';btn.style.borderRadius='22px';btn.style.background='transparent';btn.style.boxShadow='0 12px 30px rgba(1,23,12,.14)';
+    [...btn.children].forEach(ch=>{if(ch.tagName!=='IMG')ch.style.display='none'});
+   }
+   const img=sl.querySelector('img');
+   if(img){img.style.width='100%';img.style.height='100%';img.style.objectFit='cover';img.style.objectPosition='center';img.style.display='block';img.style.filter='none';img.style.opacity='1';img.onerror=()=>{if(!sessionStorage.getItem('tnm_banner_reload')){sessionStorage.setItem('tnm_banner_reload','1');location.reload()}}}
+  });
  }
- setInterval(()=>{runTickets();runBannerFix()},500);document.addEventListener('click',()=>setTimeout(()=>{runTickets();runBannerFix()},80),true);document.addEventListener('DOMContentLoaded',()=>setTimeout(runBannerFix,300));
+ setInterval(()=>{runTickets();runBannerFix()},300);document.addEventListener('click',()=>setTimeout(()=>{runTickets();runBannerFix()},80),true);document.addEventListener('DOMContentLoaded',()=>setTimeout(runBannerFix,300));
 })();
