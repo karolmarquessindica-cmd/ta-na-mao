@@ -12,6 +12,12 @@ export const portalPublicSafeRouter = Router()
 const TICKET_CONFIRMATION_MESSAGE = 'Obrigada por nos ajudar a cuidar do seu patrimônio.'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+const DEFAULT_EMERGENCY_CONTACTS = [
+  { id: 'default-policia', nome: 'Polícia Militar', funcao: 'Emergência 24h', telefone: '190', whatsapp: '', email: '', icone: '🚓', ligar: true, usarWhatsApp: false, ativo: true, ordem: 900 },
+  { id: 'default-samu', nome: 'SAMU / Ambulância', funcao: 'Atendimento móvel de urgência', telefone: '192', whatsapp: '', email: '', icone: '🚑', ligar: true, usarWhatsApp: false, ativo: true, ordem: 901 },
+  { id: 'default-bombeiros', nome: 'Corpo de Bombeiros', funcao: 'Emergência e resgate', telefone: '193', whatsapp: '', email: '', icone: '🔥', ligar: true, usarWhatsApp: false, ativo: true, ordem: 902 },
+]
+
 const safeDocumentoSelect = { id: true, nome: true, descricao: true, pasta: true, tipo: true, acesso: true, url: true, tamanho: true, createdAt: true, updatedAt: true, condominioId: true }
 const safeManutencaoSelect = { id: true, titulo: true, descricao: true, tipo: true, status: true, prioridade: true, responsavel: true, empresa: true, dataVencimento: true, dataConclusao: true, observacoes: true, createdAt: true, updatedAt: true, condominioId: true }
 
@@ -87,8 +93,17 @@ function portalDocument(documento, portal) {
 }
 function publicContacts(condominio, portal) {
   const configured = (portal.contatos || []).filter(item => item?.ativo !== false)
-  const fromUsers = (condominio.users || []).map(user => ({ id: user.id, nome: user.nome, funcao: user.role === 'SINDICO' ? 'Sindico' : user.role === 'ADMIN' ? 'Administracao' : 'Responsavel', telefone: user.telefone || '', whatsapp: user.whatsapp || '', email: user.email || '', ativo: true }))
-  return [...configured, ...fromUsers]
+  const fromUsers = (condominio.users || []).map(user => ({ id: user.id, nome: user.nome, funcao: user.role === 'SINDICO' ? 'Sindico' : user.role === 'ADMIN' ? 'Administracao' : 'Responsavel', telefone: user.telefone || '', whatsapp: user.whatsapp || '', email: user.email || '', ativo: true, ligar: true, usarWhatsApp: Boolean(user.whatsapp || user.telefone) }))
+  const all = [...configured, ...fromUsers, ...DEFAULT_EMERGENCY_CONTACTS]
+  const seen = new Set()
+  return all
+    .filter(item => {
+      const k = String(item.telefone || item.nome || item.id || '').replace(/\D/g, '') || String(item.nome || item.id || '').toLowerCase()
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+    .sort((a, b) => Number(a.ordem ?? 100) - Number(b.ordem ?? 100))
 }
 function publicMaintenance(item) {
   const date = item.dataVencimento || item.createdAt
