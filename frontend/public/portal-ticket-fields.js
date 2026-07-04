@@ -7,38 +7,7 @@
  function readNotebook(id=currentCondoId){return localStorage.getItem(key(id))||''}
  function validUrl(url){return /^https?:\/\//i.test(String(url||'').trim())}
  const originalFetch=window.fetch.bind(window);
- window.fetch=async function(input,init){
-  const url=typeof input==='string'?input:(input&&input.url)||'';
-  const method=String((init&&init.method)||'GET').toUpperCase();
-  const m=url.match(/\/api\/condominios\/([^/]+)\/portal-config/);
-  if(m){currentCondoId=m[1]}
-  let nextInit=init;
-  if(m&&method==='PUT'&&init&&typeof init.body==='string'){
-   try{
-    const body=JSON.parse(init.body);
-    const stored=readNotebook(m[1]).trim();
-    if(stored){
-     if(body.config){body.config.portalMorador={...(body.config.portalMorador||{}),notebookLmUrl:stored,iaExternaUrl:stored}}
-     else if(body.portalMorador){body.portalMorador={...(body.portalMorador||{}),notebookLmUrl:stored,iaExternaUrl:stored}}
-     else{body.portalMorador={...(body.portalMorador||{}),notebookLmUrl:stored,iaExternaUrl:stored}}
-     nextInit={...init,body:JSON.stringify(body)};
-    }
-   }catch{}
-  }
-  const res=await originalFetch(input,nextInit);
-  try{
-   const clone=res.clone();
-   const data=await clone.json();
-   if(m&&data?.config?.portalMorador){
-    const p=data.config.portalMorador;
-    saveNotebook(m[1],p.notebookLmUrl||p.iaExternaUrl||'');
-   }
-   if(/\/api\/portal\//.test(url)&&data?.config){
-    window.__TNM_NOTEBOOKLM_URL=data.config.notebookLmUrl||data.config.iaExternaUrl||data.config.notebookUrl||'';
-   }
-  }catch{}
-  return res;
- };
+ window.fetch=async function(input,init){const url=typeof input==='string'?input:(input&&input.url)||'';const method=String((init&&init.method)||'GET').toUpperCase();const m=url.match(/\/api\/condominios\/([^/]+)\/portal-config/);if(m){currentCondoId=m[1]}let nextInit=init;if(m&&method==='PUT'&&init&&typeof init.body==='string'){try{const body=JSON.parse(init.body);const stored=readNotebook(m[1]).trim();if(stored){if(body.config){body.config.portalMorador={...(body.config.portalMorador||{}),notebookLmUrl:stored,iaExternaUrl:stored}}else if(body.portalMorador){body.portalMorador={...(body.portalMorador||{}),notebookLmUrl:stored,iaExternaUrl:stored}}else{body.portalMorador={...(body.portalMorador||{}),notebookLmUrl:stored,iaExternaUrl:stored}}nextInit={...init,body:JSON.stringify(body)}}}catch{}}const res=await originalFetch(input,nextInit);try{const clone=res.clone();const data=await clone.json();if(m&&data?.config?.portalMorador){const p=data.config.portalMorador;saveNotebook(m[1],p.notebookLmUrl||p.iaExternaUrl||'')}if(/\/api\/portal\//.test(url)&&data?.config){window.__TNM_NOTEBOOKLM_URL=data.config.notebookLmUrl||data.config.iaExternaUrl||data.config.notebookUrl||''}}catch{}return res};
  const dados={nome:'',whatsapp:'',apartamento:'',bloco:''};
  function input(label,keyName,ph){const w=document.createElement('div');w.className='fg';const l=document.createElement('label');l.textContent=label;const i=document.createElement('input');i.placeholder=ph;i.oninput=()=>dados[keyName]=i.value.trim();w.append(l,i);return w}
  function setVal(el,v){const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value');d&&d.set?d.set.call(el,v):el.value=v;el.dispatchEvent(new Event('input',{bubbles:true}))}
@@ -46,29 +15,12 @@
  function root(){const labels=[...document.querySelectorAll('label')];const cat=labels.find(x=>(x.textContent||'').trim().toLowerCase()==='categoria');const block=cat&&cat.closest('.fg');return block&&block.parentElement}
  function runTickets(){if(!isPortalPublic)return;const r=root();if(!r||r.querySelector('[data-ticket-resident-fields]'))return;const cat=[...r.querySelectorAll('label')].find(x=>(x.textContent||'').trim().toLowerCase()==='categoria');const block=cat&&cat.closest('.fg');if(!block)return;const box=document.createElement('div');box.dataset.ticketResidentFields='1';box.style.cssText='background:#F2FAF1;border:1px solid #DDE7DE;border-radius:14px;padding:12px;margin-bottom:12px';const title=document.createElement('div');title.textContent='Dados do morador';title.style.cssText='font-weight:900;color:#003B24;font-size:13px;margin-bottom:9px';box.appendChild(title);const r1=document.createElement('div');r1.className='row2';r1.append(input('Nome','nome','Nome do morador'),input('WhatsApp','whatsapp','(85) 99999-9999'));box.appendChild(r1);const r2=document.createElement('div');r2.className='row2';r2.append(input('Apartamento','apartamento','Ex: 101'),input('Bloco','bloco','Ex: A'));box.appendChild(r2);block.parentNode.insertBefore(box,block);[...r.querySelectorAll('button')].forEach(b=>{if((b.textContent||'').toLowerCase().includes('enviar chamado')){b.addEventListener('pointerdown',()=>addText(r),true);b.addEventListener('click',()=>addText(r),true)}})}
  function runBannerFix(){if(!isPortalPublic)return;const slides=[...document.querySelectorAll('.cslide')];if(!slides.length)return;const wrap=slides[0].parentElement;const home=wrap&&wrap.parentElement;if(home&&wrap&&home.firstElementChild!==wrap)home.insertBefore(wrap,home.firstElementChild);if(wrap)wrap.style.marginBottom='16px';slides.forEach(sl=>{sl.style.width='100%';sl.style.display=sl.classList.contains('on')?'block':'none';const btn=sl.querySelector('button');if(btn){btn.style.height='auto';btn.style.aspectRatio='1450 / 820';btn.style.minHeight='0';btn.style.borderRadius='22px';btn.style.background='transparent';btn.style.boxShadow='0 12px 30px rgba(1,23,12,.14)';[...btn.children].forEach(ch=>{if(ch.tagName!=='IMG')ch.style.display='none'})}const img=sl.querySelector('img');if(img){img.style.width='100%';img.style.height='100%';img.style.objectFit='cover';img.style.objectPosition='center';img.style.display='block';img.style.filter='none';img.style.opacity='1';img.onerror=()=>{if(!sessionStorage.getItem('tnm_banner_reload')){sessionStorage.setItem('tnm_banner_reload','1');location.reload()}}}})}
- function runNotebookAdminField(){
-  if(isPortalPublic)return;
-  const modal=[...document.querySelectorAll('.modal')].find(x=>(x.textContent||'').includes('Portal do Morador'));
-  if(!modal||modal.querySelector('[data-notebooklm-field]'))return;
-  const box=document.createElement('div');box.dataset.notebooklmField='1';box.className='fg';box.style.cssText='background:#F2FAF1;border:1px solid #DDE7DE;border-radius:14px;padding:12px;margin:12px 0';
-  const lab=document.createElement('label');lab.textContent='Link do NotebookLM / IA externa';
-  const inp=document.createElement('input');inp.type='url';inp.placeholder='https://notebooklm.google.com/...';inp.value=readNotebook();inp.style.marginTop='6px';
-  const help=document.createElement('div');help.textContent='Quando o morador clicar em Assistente IA, este link será aberto em uma nova aba.';help.style.cssText='font-size:12px;color:#68766D;margin-top:6px;line-height:1.35';
-  inp.addEventListener('input',()=>saveNotebook(currentCondoId,inp.value.trim()));
-  box.append(lab,inp,help);
-  const firstCard=modal.querySelector('.card')||modal.querySelector('.modal-bd')||modal;
-  firstCard.prepend(box);
- }
- function runNotebookPublicButton(){
-  if(!isPortalPublic)return;
-  const url=(window.__TNM_NOTEBOOKLM_URL||'').trim();
-  const buttons=[...document.querySelectorAll('button')].filter(b=>(b.textContent||'').toLowerCase().includes('assistente ia'));
-  buttons.forEach(btn=>{
-   if(btn.dataset.notebookHandler)return;btn.dataset.notebookHandler='1';
-   btn.addEventListener('click',ev=>{const link=(window.__TNM_NOTEBOOKLM_URL||'').trim();if(validUrl(link)){ev.preventDefault();ev.stopImmediatePropagation();window.open(link,'_blank','noopener,noreferrer')}},true);
-  });
- }
- setInterval(()=>{runTickets();runBannerFix();runNotebookAdminField();runNotebookPublicButton()},300);
- document.addEventListener('click',()=>setTimeout(()=>{runTickets();runBannerFix();runNotebookAdminField();runNotebookPublicButton()},80),true);
- document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{runBannerFix();runNotebookAdminField();runNotebookPublicButton()},300));
+ function runNotebookAdminField(){if(isPortalPublic)return;const modal=[...document.querySelectorAll('.modal')].find(x=>(x.textContent||'').includes('Portal do Morador'));if(!modal||modal.querySelector('[data-notebooklm-field]'))return;const box=document.createElement('div');box.dataset.notebooklmField='1';box.className='fg';box.style.cssText='background:#F2FAF1;border:1px solid #DDE7DE;border-radius:14px;padding:12px;margin:12px 0';const lab=document.createElement('label');lab.textContent='Link do NotebookLM / IA externa';const inp=document.createElement('input');inp.type='url';inp.placeholder='https://notebooklm.google.com/...';inp.value=readNotebook();inp.style.marginTop='6px';const help=document.createElement('div');help.textContent='Quando o morador clicar em Assistente IA, este link será aberto em uma nova aba.';help.style.cssText='font-size:12px;color:#68766D;margin-top:6px;line-height:1.35';inp.addEventListener('input',()=>saveNotebook(currentCondoId,inp.value.trim()));box.append(lab,inp,help);const firstCard=modal.querySelector('.card')||modal.querySelector('.modal-bd')||modal;firstCard.prepend(box)}
+ function runNotebookPublicButton(){if(!isPortalPublic)return;const buttons=[...document.querySelectorAll('button')].filter(b=>(b.textContent||'').toLowerCase().includes('assistente ia'));buttons.forEach(btn=>{if(btn.dataset.notebookHandler)return;btn.dataset.notebookHandler='1';btn.addEventListener('click',ev=>{const link=(window.__TNM_NOTEBOOKLM_URL||'').trim();if(validUrl(link)){ev.preventDefault();ev.stopImmediatePropagation();window.open(link,'_blank','noopener,noreferrer')}},true)})}
+ function linkLabel(url){if(/zoom\.us/i.test(url))return 'Entrar na reunião Zoom';if(/meet\.google/i.test(url))return 'Entrar na reunião Google Meet';if(/teams\.microsoft/i.test(url))return 'Entrar na reunião Teams';return 'Abrir link'}
+ function formatText(text){const urls=[];let clean=String(text||'').replace(/https?:\/\/\S+/g,u=>{urls.push(u.replace(/[),.;]+$/,''));return ''}).replace(/\s+$/,'').trim();clean=clean.replace(/(ASSUNTOS:)/i,'\n$1\n').replace(/(\d+\.\s*)/g,'\n$1');const parts=clean.split(/\n+/).map(x=>x.trim()).filter(Boolean);return{parts,urls:[...new Set(urls)]}}
+ function runComunicadosFix(){if(!isPortalPublic)return;const title=[...document.querySelectorAll('h1,h2,h3,div,strong')].find(e=>(e.textContent||'').trim().toLowerCase()==='comunicados');if(!title)return;let area=title.parentElement;const cards=[...area.querySelectorAll('.card')].filter(c=>!c.dataset.comunicadoFormatted&&c.innerText.length>60);cards.forEach(card=>{const raw=card.innerText.trim();const lines=raw.split('\n').map(x=>x.trim()).filter(Boolean);const titleLine=lines[0]||'Comunicado';const dateLine=lines.find(x=>/\d{2}\/\d{2}\/\d{4}/.test(x))||'';const body=lines.slice(dateLine?lines.indexOf(dateLine)+1:1).join(' ');const {parts,urls}=formatText(body);card.dataset.comunicadoFormatted='1';card.style.cssText+=';padding:16px!important;border-radius:20px!important;box-shadow:0 14px 34px rgba(1,23,12,.14)!important;line-height:1.45!important;';card.innerHTML='';const h=document.createElement('div');h.innerHTML='<span style="font-size:18px;margin-right:6px">📢</span><strong>'+titleLine+'</strong>';h.style.cssText='font-size:15px;color:#0C140D;margin-bottom:8px;line-height:1.25';card.appendChild(h);if(dateLine){const d=document.createElement('div');d.textContent='📅 Publicado em '+dateLine;d.style.cssText='font-size:12px;color:#68766D;margin-bottom:12px';card.appendChild(d)}const hr=document.createElement('div');hr.style.cssText='height:1px;background:#E4ECE2;margin:10px 0 12px';card.appendChild(hr);parts.forEach(p=>{const isItem=/^\d+\./.test(p);const el=document.createElement('div');el.textContent=isItem?'• '+p.replace(/^\d+\.\s*/,''):p;el.style.cssText='font-size:13px;color:#37433A;margin:7px 0;'+(isItem?'padding-left:6px;font-weight:600;':'');card.appendChild(el)});if(urls.length){const links=document.createElement('div');links.style.cssText='display:grid;gap:8px;margin-top:14px';urls.forEach(u=>{const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';a.textContent='🔗 '+linkLabel(u);a.style.cssText='display:flex;align-items:center;justify-content:center;background:#0B6B3A;color:#fff;text-decoration:none;border-radius:14px;padding:11px 12px;font-size:13px;font-weight:900;box-shadow:0 10px 22px rgba(11,107,58,.22)';links.appendChild(a)});card.appendChild(links)}})}
+ setInterval(()=>{runTickets();runBannerFix();runNotebookAdminField();runNotebookPublicButton();runComunicadosFix()},300);
+ document.addEventListener('click',()=>setTimeout(()=>{runTickets();runBannerFix();runNotebookAdminField();runNotebookPublicButton();runComunicadosFix()},80),true);
+ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{runBannerFix();runNotebookAdminField();runNotebookPublicButton();runComunicadosFix()},300));
 })();
