@@ -14,6 +14,7 @@ portalDocumentosSafeRouter.use(authenticate)
 
 const DEFAULT_FRONTEND_URL = 'https://www.tonocondominio.com.br'
 const UPLOAD_DIR = 'uploads'
+const MIN_AI_TEXT_LENGTH = 80
 
 const safeDocumentoSelect = {
   id: true,
@@ -48,6 +49,10 @@ function tipoArquivo(file, fallback = '') {
 function tipoAcesso(value) {
   const v = String(value || '').toUpperCase()
   return ['APENAS_SINDICO', 'MORADOR', 'IA_INTERNA', 'IA_DO_PORTAL'].includes(v) ? v : 'APENAS_SINDICO'
+}
+
+function textoValidoParaIa(texto) {
+  return String(texto || '').replace(/\s+/g, ' ').trim().length >= MIN_AI_TEXT_LENGTH
 }
 
 async function extrairTextoPdf(file) {
@@ -209,6 +214,14 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
     const tipoDocumento = tipoArquivo(req.file, req.body.tipoDocumento)
     const publicadoEm = req.body.publicadoEm || new Date().toISOString()
     const textoExtraido = usarIa ? await extrairTextoPdf(req.file) : null
+
+    if (usarIa && !textoValidoParaIa(textoExtraido)) {
+      return res.status(400).json({
+        error: 'Nao foi possivel extrair texto util deste PDF. Envie um PDF com texto selecionavel ou desmarque Usar na IA.',
+        code: 'PDF_TEXT_EXTRACTION_FAILED',
+      })
+    }
+
     const uploaded = await uploadFileResilient(req.file, 'portal-docs')
     const config = portalConfig(condominio.portalConfig)
 
@@ -222,7 +235,7 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
         url: uploaded.url,
         tamanho: req.file.size,
         textoExtraido,
-        usarComoFonteIA: Boolean(usarIa && textoExtraido),
+        usarComoFonteIA: Boolean(usarIa && textoValidoParaIa(textoExtraido)),
         categoriaIA: usarIa ? categoria : null,
         condominioId: condominio.id,
       },
@@ -230,7 +243,7 @@ portalDocumentosSafeRouter.post('/:id/portal-documentos', requireRole('ADMIN', '
     })
 
     if (visivelPortal) config.portalMorador.documentoIds = [...new Set([...(config.portalMorador.documentoIds || []), documento.id])]
-    config.portalMorador.documentoMeta[documento.id] = { titulo, categoria, publicadoEm, visivelPortal, usarIa: Boolean(usarIa && textoExtraido), tipoAcesso: acesso, tipoDocumento }
+    config.portalMorador.documentoMeta[documento.id] = { titulo, categoria, publicadoEm, visivelPortal, usarIa: Boolean(usarIa && textoValidoParaIa(textoExtraido)), tipoAcesso: acesso, tipoDocumento }
 
     const updated = await prisma.condominio.update({
       where: { id: condominio.id },
@@ -258,6 +271,16 @@ portalDocumentosSafeRouter.patch('/:id/portal-documentos/:documentoId', requireR
     const usarIa = req.body.usarIa === undefined ? Boolean(existing.usarIa) : boolValue(req.body.usarIa)
     let acesso = tipoAcesso(req.body.tipoAcesso || existing.tipoAcesso || (visivelPortal ? 'MORADOR' : 'APENAS_SINDICO'))
     if (visivelPortal && acesso === 'APENAS_SINDICO') acesso = 'MORADOR'
+
+    if (usarIa) {
+      const stored = await prisma.documento.findUnique({ where: { id: documento.id }, select: { textoExtraido: true } }).catch(() => null)
+      if (!textoValidoParaIa(stored?.textoExtraido)) {
+        return res.status(400).json({
+          error: 'Este documento nao possui texto extraido para alimentar a IA. Remova e envie novamente o PDF com Usar na IA marcado.',
+          code: 'DOCUMENT_WITHOUT_AI_TEXT',
+        })
+      }
+    }
 
     if (visivelPortal) portal.documentoIds = [...new Set([...(portal.documentoIds || []), documento.id])]
     else portal.documentoIds = (portal.documentoIds || []).filter(id => id !== documento.id)
