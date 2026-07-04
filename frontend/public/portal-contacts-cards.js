@@ -19,9 +19,9 @@
     if (t.includes('manut') || t.includes('zelador')) return '🛠️';
     return '📞';
   };
-  const isContactTitle = (el) => {
+  const isExactContactsTitle = (el) => {
     const t = (el.textContent || '').trim().toLowerCase();
-    return t === 'contatos úteis' || t === 'contatos uteis' || t === 'contatos / colaboradores' || t.includes('contatos');
+    return t === 'contatos úteis' || t === 'contatos uteis' || t === 'contatos / colaboradores';
   };
   const phoneRegex = /(?:\+?55\s*)?\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}|\b\d{3}\b/;
 
@@ -44,6 +44,7 @@
     if(!lines.length) return;
     const phoneMatch = raw.match(phoneRegex);
     const phone = phoneMatch ? phoneMatch[0] : '';
+    if(!phone) return;
     const d = digits(phone);
     const name = lines[0] || 'Contato';
     const role = lines.find(x => x !== name && !phoneRegex.test(x) && !x.includes('@')) || 'Contato do condomínio';
@@ -66,12 +67,11 @@
     top.append(ic, info);
     card.appendChild(top);
 
-    if(phone){
-      const tel = document.createElement('div');
-      tel.textContent = '📞 ' + fmtPhone(phone);
-      tel.style.cssText = 'font-size:13px;color:#26342A;background:#F5F8F3;border:1px solid #E4ECE2;border-radius:13px;padding:9px 11px;margin-bottom:10px;font-weight:800;';
-      card.appendChild(tel);
-    }
+    const tel = document.createElement('div');
+    tel.textContent = '📞 ' + fmtPhone(phone);
+    tel.style.cssText = 'font-size:13px;color:#26342A;background:#F5F8F3;border:1px solid #E4ECE2;border-radius:13px;padding:9px 11px;margin-bottom:10px;font-weight:800;';
+    card.appendChild(tel);
+
     if(email){
       const em = document.createElement('div');
       em.textContent = '✉️ ' + email;
@@ -81,13 +81,13 @@
 
     const actions = document.createElement('div');
     actions.style.cssText = `display:grid;grid-template-columns:${wa ? '1fr 1fr' : '1fr'};gap:8px;margin-top:8px;`;
-    if(phone) actions.appendChild(button('tel:' + d, '📞 Ligar'));
+    actions.appendChild(button('tel:' + d, '📞 Ligar'));
     if(wa) actions.appendChild(button(['https://wa','.me/'].join('') + wa, '💬 WhatsApp', true));
-    if(phone || wa) card.appendChild(actions);
+    card.appendChild(actions);
   }
 
   function run(){
-    const title = [...document.querySelectorAll('h1,h2,h3,div,strong')].find(isContactTitle);
+    const title = [...document.querySelectorAll('h1,h2,h3')].find(isExactContactsTitle);
     if(!title) return;
     const area = title.parentElement;
     if(!area) return;
@@ -95,7 +95,7 @@
     cards.forEach(formatCard);
   }
 
-  setInterval(run, 300);
+  setInterval(run, 500);
   document.addEventListener('DOMContentLoaded', () => setTimeout(run, 300));
-  document.addEventListener('click', () => setTimeout(run, 80), true);
+  document.addEventListener('click', () => setTimeout(run, 100), true);
 })();
