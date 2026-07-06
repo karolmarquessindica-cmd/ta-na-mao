@@ -29,6 +29,24 @@ body:has(.pnav) [aria-label*="calendar"] {
   display: none !important;
 }
 
+body:has(.pnav) [data-gestao-acao-button] {
+  width: 100% !important;
+  min-height: 176px !important;
+  border: 1px solid rgba(12,55,20,.08) !important;
+  background: #fff !important;
+  color: #0C140D !important;
+  border-radius: 22px !important;
+  padding: 16px !important;
+  text-align: left !important;
+  box-shadow: 0 14px 34px rgba(1,23,12,.18) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  font-size: 15px !important;
+  margin: 0 0 16px 0 !important;
+}
+
 .sidebar {
   width: 232px !important;
   background: linear-gradient(180deg, #06150d 0%, #0b2b19 55%, #06120b 100%) !important;
@@ -118,59 +136,5 @@ body:has(.pnav) [aria-label*="calendar"] {
 }
 
 .table td {
-  background: #fff !important;
-  border-bottom: 1px solid #eef2ec !important;
-}
-
-.table tr:hover td {
-  background: #fbfdf9 !important;
-}
-
-.btn {
-  border-radius: 12px !important;
-  box-shadow: none !important;
-}
-
-.btn-primary,
-.btn-accent {
-  background: linear-gradient(135deg, #075c33, #0f7a3d) !important;
-  color: #fff !important;
-  box-shadow: 0 8px 18px rgba(7, 92, 51, 0.16) !important;
-}
-
-.btn-ghost {
-  background: #fff !important;
-  border: 1px solid #d9e3d8 !important;
-  color: #075c33 !important;
-}
-
-.badge {
-  border-radius: 999px !important;
-  font-weight: 800 !important;
-}
-
-input,
-select,
-textarea {
-  border-color: #d9e3d8 !important;
-  border-radius: 12px !important;
-  background: #fff !important;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: #0f7a3d !important;
-  box-shadow: 0 0 0 4px rgba(15, 122, 61, .10) !important;
-}
-
-.nav-item {
-  border-radius: 12px !important;
-  font-weight: 750 !important;
-}
-
-.nav-item.active {
-  background: rgba(255,255,255,.12) !important;
-  color: #fff !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.10) !important;
+  border-bottom: 1px solid #edf2ea !important;
 }
