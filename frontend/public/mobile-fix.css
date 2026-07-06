@@ -319,9 +319,21 @@ body:has(.pnav) [aria-label*="calendar"] {
     width: 100% !important;
   }
 
-  [data-ga-admin-btn],
-  [data-ga-manager-btn],
   [data-voz-form-admin] {
     display: none !important;
+  }
+
+  [data-ga-admin-btn],
+  [data-ga-manager-btn] {
+    display: flex !important;
+    position: fixed !important;
+    right: 14px !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 18px) !important;
+    z-index: 10040 !important;
+    max-width: calc(100vw - 28px) !important;
+    border-radius: 999px !important;
+    background: #08783f !important;
+    color: #fff !important;
+    box-shadow: 0 14px 34px rgba(0,59,36,.28) !important;
   }
 }
