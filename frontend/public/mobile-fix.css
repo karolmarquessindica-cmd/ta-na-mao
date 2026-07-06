@@ -29,24 +29,6 @@ body:has(.pnav) [aria-label*="calendar"] {
   display: none !important;
 }
 
-body:has(.pnav) [data-gestao-acao-button] {
-  width: 100% !important;
-  min-height: 176px !important;
-  border: 1px solid rgba(12,55,20,.08) !important;
-  background: #fff !important;
-  color: #0C140D !important;
-  border-radius: 22px !important;
-  padding: 16px !important;
-  text-align: left !important;
-  box-shadow: 0 14px 34px rgba(1,23,12,.18) !important;
-  cursor: pointer !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: space-between !important;
-  font-size: 15px !important;
-  margin: 0 0 16px 0 !important;
-}
-
 .sidebar {
   width: 232px !important;
   background: linear-gradient(180deg, #06150d 0%, #0b2b19 55%, #06120b 100%) !important;
