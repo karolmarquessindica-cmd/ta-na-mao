@@ -8,47 +8,34 @@
     try{const data=await res.clone().json();const list=Array.isArray(data)?data:(Array.isArray(data?.data)?data.data:[]);if(list.length&&list[0]?.id&&list[0]?.nome&&url.includes('condominios'))condominios=list;}catch{}
     return res;
   };
-  function condo(){
-    const txt=document.body.innerText||'';
-    return condominios.find(c=>txt.includes(c.nome))||condominios[0]||null;
-  }
+  function condo(){const txt=document.body.innerText||'';return condominios.find(c=>txt.includes(c.nome))||condominios[0]||null;}
   function key(id){return 'tnm_gestao_acao_feed_'+(id||'sem-condominio')}
   function read(id){try{return JSON.parse(localStorage.getItem(key(id))||'[]')}catch{return[]}}
   function write(id,items){localStorage.setItem(key(id),JSON.stringify(items.slice(0,200)))}
+  function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
+  function preview(box,files,item){box.innerHTML='';if(item?.fotos?.length&&!files.length){box.textContent='Fotos atuais mantidas. Se escolher novas fotos, elas serão substituídas.';box.style.cssText='font-size:12px;color:#68766D;margin-top:8px';return;}if(!files.length){box.textContent='Nenhuma foto selecionada.';box.style.cssText='font-size:12px;color:#68766D;margin-top:8px';return;}[...files].forEach((f,i)=>{const d=document.createElement('div');d.textContent='📷 Foto '+(i+1)+' — '+f.name;d.style.cssText='background:#F5F8F3;border:1px solid #DDE7DE;border-radius:12px;padding:8px 10px;margin-top:6px;font-size:12px;color:#0C140D;font-weight:800';box.appendChild(d);});}
+  function openForm(item=null){
+    const c=condo()||(item?{id:item.condominioId,nome:item.condominioNome}:null);if(!c?.id){alert('Condomínio não identificado.');return;}
+    document.querySelector('[data-ga-form]')?.remove();
+    const overlay=document.createElement('div');overlay.dataset.gaForm='1';overlay.style.cssText='position:fixed;inset:0;background:rgba(2,18,10,.55);z-index:100002;display:flex;align-items:center;justify-content:center;padding:16px';
+    const modal=document.createElement('div');modal.style.cssText='width:min(620px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:24px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.28)';overlay.appendChild(modal);document.body.appendChild(overlay);
+    modal.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:14px;gap:12px"><div><div style="font-size:22px;font-weight:950;color:#0C140D">Gestão em Ação</div><div style="font-size:13px;color:#68766D">'+(item?'Editar publicação':'Nova publicação')+'</div></div><button data-close style="width:36px;height:36px;border:0;border-radius:999px;background:#EEF6EF;font-size:22px;font-weight:900">×</button></div><div style="background:#ECFDF3;border:1px solid #BBF7D0;border-radius:16px;padding:11px 13px;margin-bottom:14px;color:#065F46;font-weight:900;font-size:13px">🏢 Publicando em: '+c.nome+'</div><div class="row2"><div class="fg"><label>Data</label><input data-data type="date"></div><div class="fg"><label>Status</label><select data-status><option>Concluído</option><option>Em andamento</option><option>Aguardando terceiros</option></select></div></div><div class="row2"><div class="fg"><label>Local</label><input data-local placeholder="Piscina, Portaria, Bloco A"></div><div class="fg"><label>Categoria</label><select data-categoria><option>Vistoria</option><option>Manutenção</option><option>Treinamento</option><option>Cagece</option><option>Enel</option><option>Limpeza</option><option>Jardinagem</option><option>Segurança</option><option>Outros</option></select></div></div><div class="fg"><label>Título</label><input data-titulo placeholder="Ex: Vistoria preventiva da piscina"></div><div class="fg"><label>Legenda</label><textarea data-legenda rows="5" placeholder="Descreva o que foi feito..."></textarea></div><div class="fg"><label>Fotos</label><input data-fotos type="file" accept="image/*" multiple><div data-preview></div></div><label style="display:flex;gap:8px;align-items:center;margin:8px 0 16px;color:#0C140D;font-weight:800"><input data-publicar type="checkbox" checked style="width:auto"> Publicar no Portal do Morador</label><button data-save class="btn btn-primary" style="width:100%;justify-content:center">'+(item?'Salvar alterações':'Publicar')+'</button>';
+    modal.querySelector('[data-close]').onclick=()=>overlay.remove();
+    modal.querySelector('[data-data]').value=(item?.data||new Date().toISOString().slice(0,10)).slice(0,10);
+    modal.querySelector('[data-status]').value=item?.status||'Concluído';modal.querySelector('[data-local]').value=item?.local||'';modal.querySelector('[data-categoria]').value=item?.categoria||'Vistoria';modal.querySelector('[data-titulo]').value=item?.titulo||'';modal.querySelector('[data-legenda]').value=item?.legenda||'';modal.querySelector('[data-publicar]').checked=item?item.publicadoPortal!==false:true;
+    const input=modal.querySelector('[data-fotos]');const box=modal.querySelector('[data-preview]');input.onchange=()=>preview(box,input.files||[],item);preview(box,[],item);
+    modal.querySelector('[data-save]').onclick=async()=>{const btn=modal.querySelector('[data-save]');btn.disabled=true;btn.textContent='Salvando...';try{const files=[...(input.files||[])].slice(0,8);const fotos=files.length?await Promise.all(files.map(fileToDataUrl)):(item?.fotos||[]);const novo={id:item?.id||'ga_'+Date.now(),condominioId:c.id,condominioNome:c.nome,data:modal.querySelector('[data-data]').value,status:modal.querySelector('[data-status]').value,local:modal.querySelector('[data-local]').value.trim(),categoria:modal.querySelector('[data-categoria]').value,titulo:modal.querySelector('[data-titulo]').value.trim()||'Registro da Gestão',legenda:modal.querySelector('[data-legenda]').value.trim(),fotos,publicadoPortal:modal.querySelector('[data-publicar]').checked,createdAt:item?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};write(c.id,[novo,...read(c.id).filter(x=>x.id!==novo.id)]);overlay.remove();openManager();}catch(e){alert('Não foi possível salvar. Tente imagens menores.');btn.disabled=false;btn.textContent=item?'Salvar alterações':'Publicar';}};
+  }
   function openManager(){
-    const c=condo();
-    if(!c){alert('Condomínio não identificado. Abra a área do condomínio antes.');return;}
+    const c=condo();if(!c){alert('Condomínio não identificado. Abra a área do condomínio antes.');return;}
     document.querySelector('[data-ga-manager]')?.remove();
     const overlay=document.createElement('div');overlay.dataset.gaManager='1';overlay.style.cssText='position:fixed;inset:0;background:rgba(2,18,10,.55);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px';
     const modal=document.createElement('div');modal.style.cssText='width:min(760px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:24px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.28)';overlay.appendChild(modal);document.body.appendChild(overlay);
-    const items=read(c.id);
-    modal.innerHTML='';
-    const head=document.createElement('div');head.style.cssText='display:flex;justify-content:space-between;gap:12px;margin-bottom:14px';
-    head.innerHTML='<div><div style="font-size:22px;font-weight:950;color:#0C140D">Publicações - Gestão em Ação</div><div style="font-size:13px;color:#68766D">'+c.nome+'</div></div>';
-    const close=document.createElement('button');close.textContent='×';close.style.cssText='width:36px;height:36px;border:0;border-radius:999px;background:#EEF6EF;font-size:22px;font-weight:900';close.onclick=()=>overlay.remove();head.appendChild(close);modal.appendChild(head);
-    if(!items.length){const empty=document.createElement('div');empty.textContent='Nenhuma publicação cadastrada ainda.';empty.style.cssText='padding:18px;border:1px dashed #DDE7DE;border-radius:16px;color:#68766D;text-align:center';modal.appendChild(empty);return;}
-    items.forEach(item=>{
-      const card=document.createElement('div');card.style.cssText='border:1px solid #E4ECE2;border-radius:18px;padding:14px;margin-bottom:10px;background:#FDFEFC';
-      const title=document.createElement('div');title.textContent=item.titulo||'Registro da Gestão';title.style.cssText='font-weight:950;color:#0C140D;margin-bottom:4px';
-      const meta=document.createElement('div');meta.textContent=(item.data||'')+' • '+(item.local||'Sem local')+' • '+(item.publicadoPortal!==false?'Publicado':'Interno');meta.style.cssText='font-size:12px;color:#68766D;margin-bottom:10px';
-      const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap';
-      const edit=document.createElement('button');edit.textContent='Editar';edit.className='btn btn-sm btn-ghost';edit.onclick=()=>{
-        const titulo=prompt('Título:',item.titulo||''); if(titulo===null)return;
-        const legenda=prompt('Legenda:',item.legenda||''); if(legenda===null)return;
-        const local=prompt('Local:',item.local||''); if(local===null)return;
-        const status=prompt('Status:',item.status||'Concluído'); if(status===null)return;
-        const updated={...item,titulo,legenda,local,status,updatedAt:new Date().toISOString()};
-        write(c.id,read(c.id).map(x=>x.id===item.id?updated:x));
-        overlay.remove();openManager();
-      };
-      const toggle=document.createElement('button');toggle.textContent=item.publicadoPortal!==false?'Ocultar do portal':'Publicar no portal';toggle.className='btn btn-sm btn-ghost';toggle.onclick=()=>{const updated={...item,publicadoPortal:item.publicadoPortal===false};write(c.id,read(c.id).map(x=>x.id===item.id?updated:x));overlay.remove();openManager();};
-      const del=document.createElement('button');del.textContent='Apagar';del.className='btn btn-sm btn-danger';del.onclick=()=>{if(confirm('Apagar esta publicação?')){write(c.id,read(c.id).filter(x=>x.id!==item.id));overlay.remove();openManager();}};
-      actions.append(edit,toggle,del);card.append(title,meta,actions);modal.appendChild(card);
-    });
+    const items=read(c.id);modal.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:14px"><div><div style="font-size:22px;font-weight:950;color:#0C140D">Publicações - Gestão em Ação</div><div style="font-size:13px;color:#68766D">'+c.nome+'</div></div><button data-close style="width:36px;height:36px;border:0;border-radius:999px;background:#EEF6EF;font-size:22px;font-weight:900">×</button></div><button data-new class="btn btn-primary" style="margin-bottom:14px">+ Nova publicação</button><div data-list></div>';
+    modal.querySelector('[data-close]').onclick=()=>overlay.remove();modal.querySelector('[data-new]').onclick=()=>{overlay.remove();openForm();};const list=modal.querySelector('[data-list]');
+    if(!items.length){list.innerHTML='<div style="padding:18px;border:1px dashed #DDE7DE;border-radius:16px;color:#68766D;text-align:center">Nenhuma publicação cadastrada ainda.</div>';return;}
+    items.forEach(item=>{const card=document.createElement('div');card.style.cssText='border:1px solid #E4ECE2;border-radius:18px;padding:14px;margin-bottom:10px;background:#FDFEFC';card.innerHTML='<div style="font-weight:950;color:#0C140D;margin-bottom:4px">'+(item.titulo||'Registro da Gestão')+'</div><div style="font-size:12px;color:#68766D;margin-bottom:10px">'+(item.data||'')+' • '+(item.local||'Sem local')+' • '+(item.publicadoPortal!==false?'Publicado':'Interno')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button data-edit class="btn btn-sm btn-ghost">Editar</button><button data-toggle class="btn btn-sm btn-ghost">'+(item.publicadoPortal!==false?'Ocultar do portal':'Publicar no portal')+'</button><button data-del class="btn btn-sm btn-danger">Apagar</button></div>';card.querySelector('[data-edit]').onclick=()=>{overlay.remove();openForm(item);};card.querySelector('[data-toggle]').onclick=()=>{write(c.id,read(c.id).map(x=>x.id===item.id?{...x,publicadoPortal:x.publicadoPortal===false}:x));overlay.remove();openManager();};card.querySelector('[data-del]').onclick=()=>{if(confirm('Apagar esta publicação?')){write(c.id,read(c.id).filter(x=>x.id!==item.id));overlay.remove();openManager();}};list.appendChild(card);});
   }
-  function addBtn(){
-    if(document.querySelector('[data-ga-manager-btn]'))return;
-    const btn=document.createElement('button');btn.dataset.gaManagerBtn='1';btn.textContent='📋 Publicações Gestão em Ação';btn.className='btn btn-ghost';btn.style.cssText='position:fixed;right:22px;bottom:74px;z-index:9999;border-radius:999px;box-shadow:0 14px 34px rgba(0,59,36,.18);background:#fff';btn.onclick=openManager;document.body.appendChild(btn);
-  }
+  function addBtn(){if(document.querySelector('[data-ga-manager-btn]'))return;const nav=[...document.querySelectorAll('button,.nav-item')].find(el=>(el.textContent||'').includes('Gestão em Ação'));if(nav&&nav.parentElement){const b=document.createElement('button');b.dataset.gaManagerBtn='1';b.textContent='Publicações Gestão em Ação';b.className='btn btn-ghost';b.style.cssText='margin:10px 0;border-radius:14px;width:100%;justify-content:center';b.onclick=openManager;nav.insertAdjacentElement('afterend',b);return;}const btn=document.createElement('button');btn.dataset.gaManagerBtn='1';btn.textContent='📋 Publicações Gestão em Ação';btn.className='btn btn-ghost';btn.style.cssText='position:fixed;right:22px;bottom:84px;z-index:9999;border-radius:999px;box-shadow:0 14px 34px rgba(0,59,36,.18);background:#fff';btn.onclick=openManager;document.body.appendChild(btn);}
   setInterval(addBtn,900);
 })();
