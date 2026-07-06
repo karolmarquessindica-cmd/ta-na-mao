@@ -1,6 +1,7 @@
 (()=>{
   if(location.search.includes('portal=')) return;
   let condominios=[];
+  const BASE='https://ta-na-mao-9bii.onrender.com';
   const originalFetch=window.fetch.bind(window);
   window.fetch=async function(input,init){
     const url=typeof input==='string'?input:(input&&input.url)||'';
@@ -11,7 +12,8 @@
   function condo(){const txt=document.body.innerText||'';return condominios.find(c=>txt.includes(c.nome))||condominios[0]||null;}
   function key(id){return 'tnm_gestao_acao_feed_'+(id||'sem-condominio')}
   function read(id){try{return JSON.parse(localStorage.getItem(key(id))||'[]')}catch{return[]}}
-  function write(id,items){localStorage.setItem(key(id),JSON.stringify(items.slice(0,200)))}
+  async function saveBackend(id,items){const token=localStorage.getItem('tnm_token');if(!token||!id||id==='sem-condominio')return;try{await fetch(BASE+'/api/condominios/'+id+'/portal-config',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({portalMorador:{gestaoAcao:items}})});}catch(e){console.warn('Gestão em Ação não sincronizou',e)}}
+  function write(id,items){const list=items.slice(0,200);localStorage.setItem(key(id),JSON.stringify(list));saveBackend(id,list)}
   function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});}
   function preview(box,files,item){box.innerHTML='';if(item?.fotos?.length&&!files.length){box.textContent='Fotos atuais mantidas. Se escolher novas fotos, elas serão substituídas.';box.style.cssText='font-size:12px;color:#68766D;margin-top:8px';return;}if(!files.length){box.textContent='Nenhuma foto selecionada.';box.style.cssText='font-size:12px;color:#68766D;margin-top:8px';return;}[...files].forEach((f,i)=>{const d=document.createElement('div');d.textContent='📷 Foto '+(i+1)+' — '+f.name;d.style.cssText='background:#F5F8F3;border:1px solid #DDE7DE;border-radius:12px;padding:8px 10px;margin-top:6px;font-size:12px;color:#0C140D;font-weight:800';box.appendChild(d);});}
   function openForm(item=null){
