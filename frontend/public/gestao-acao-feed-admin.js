@@ -1,9 +1,50 @@
 (()=>{
   if(location.search.includes('portal=')) return;
 
-  const storeKey = 'tnm_gestao_acao_feed';
-  const read = () => { try { return JSON.parse(localStorage.getItem(storeKey) || '[]'); } catch { return []; } };
-  const write = (items) => localStorage.setItem(storeKey, JSON.stringify(items.slice(0,200)));
+  const baseKey = 'tnm_gestao_acao_feed';
+  let condominios = [];
+  let selectedCondo = null;
+
+  function normalizeId(value=''){
+    return String(value || '').trim();
+  }
+
+  function condoKey(condoId){
+    const id = normalizeId(condoId || selectedCondo?.id || 'sem-condominio');
+    return `${baseKey}_${id}`;
+  }
+
+  const read = (condoId) => { try { return JSON.parse(localStorage.getItem(condoKey(condoId)) || '[]'); } catch { return []; } };
+  const write = (items, condoId) => localStorage.setItem(condoKey(condoId), JSON.stringify(items.slice(0,200)));
+
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async function(input, init){
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    const res = await originalFetch(input, init);
+    try{
+      const data = await res.clone().json();
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+      if(list.length && list[0]?.id && list[0]?.nome && /condominios/i.test(url)){
+        condominios = list;
+        if(!selectedCondo) selectedCondo = condominios[0];
+      }
+    }catch{}
+    return res;
+  };
+
+  function getSelectedCondoFromPage(){
+    const selects = [...document.querySelectorAll('select')];
+    for(const select of selects){
+      const option = select.selectedOptions && select.selectedOptions[0];
+      if(!option) continue;
+      const text = (option.textContent || '').trim();
+      const condo = condominios.find(c => c.nome === text || c.id === select.value);
+      if(condo) return condo;
+    }
+    const pageText = document.body.innerText || '';
+    const condo = condominios.find(c => c?.nome && pageText.includes(c.nome));
+    return condo || selectedCondo || condominios[0] || null;
+  }
 
   function fileToDataUrl(file){
     return new Promise((resolve,reject)=>{
@@ -29,6 +70,7 @@
   }
 
   function openModal(){
+    selectedCondo = getSelectedCondoFromPage();
     document.querySelector('[data-ga-modal]')?.remove();
     const overlay = document.createElement('div');
     overlay.dataset.gaModal = '1';
@@ -40,6 +82,7 @@
         <div><div style="font-size:22px;font-weight:950;color:#0C140D">Gestão em Ação</div><div style="font-size:13px;color:#68766D">Nova publicação estilo Facebook.</div></div>
         <button data-close style="width:36px;height:36px;border:0;border-radius:999px;background:#EEF6EF;font-size:22px;font-weight:900">×</button>
       </div>
+      <div style="background:#ECFDF3;border:1px solid #BBF7D0;border-radius:16px;padding:11px 13px;margin-bottom:14px;color:#065F46;font-weight:900;font-size:13px">🏢 Publicando em: <span data-condo-label>${selectedCondo?.nome || 'Condomínio não identificado'}</span></div>
       <div class="row2"><div class="fg"><label>Data</label><input data-data type="date"></div><div class="fg"><label>Status</label><select data-status><option>Concluído</option><option>Em andamento</option><option>Aguardando terceiros</option></select></div></div>
       <div class="row2"><div class="fg"><label>Local</label><input data-local placeholder="Piscina, Portaria, Bloco A"></div><div class="fg"><label>Categoria</label><select data-categoria><option>Vistoria</option><option>Manutenção</option><option>Treinamento</option><option>Cagece</option><option>Enel</option><option>Limpeza</option><option>Jardinagem</option><option>Segurança</option><option>Outros</option></select></div></div>
       <div class="fg"><label>Título</label><input data-titulo placeholder="Ex: Vistoria preventiva da piscina"></div>
@@ -67,10 +110,19 @@
       saveBtn.disabled = true;
       saveBtn.textContent = 'Salvando...';
       try{
+        const currentCondo = selectedCondo || getSelectedCondoFromPage();
+        if(!currentCondo?.id){
+          alert('Selecione um condomínio antes de publicar.');
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Publicar';
+          return;
+        }
         const files = [...(fileInput.files || [])].slice(0,8);
         const fotos = await Promise.all(files.map(fileToDataUrl));
         const item = {
           id:'ga_' + Date.now(),
+          condominioId: currentCondo.id,
+          condominioNome: currentCondo.nome,
           data:modal.querySelector('[data-data]').value,
           status:modal.querySelector('[data-status]').value,
           local:modal.querySelector('[data-local]').value.trim(),
@@ -81,8 +133,8 @@
           publicadoPortal:modal.querySelector('[data-publicar]').checked,
           createdAt:new Date().toISOString()
         };
-        write([item, ...read()]);
-        alert('Registro salvo no Gestão em Ação.');
+        write([item, ...read(currentCondo.id)], currentCondo.id);
+        alert(`Registro salvo no Gestão em Ação de ${currentCondo.nome}.`);
         overlay.remove();
       }catch(e){
         alert('Não foi possível salvar as fotos. Tente imagens menores.');
