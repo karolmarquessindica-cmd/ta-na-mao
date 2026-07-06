@@ -44,6 +44,17 @@
     if(!feed.length){const empty=document.createElement('div');empty.textContent='Nenhuma publicação da Gestão em Ação foi publicada ainda.';empty.style.cssText='background:#fff;border:1px dashed #D9E5D4;border-radius:18px;padding:18px;font-size:13px;color:#667085;text-align:center';modal.appendChild(empty)}else feed.forEach(item=>modal.appendChild(post(item)));
     document.body.appendChild(overlay);
   }
-  function addButton(){if(document.querySelector('[data-gestao-acao-button]'))return;const root=document.querySelector('.pnav')||document.querySelector('[class*="portal"]')||document.querySelector('#root');if(!root)return;const btn=document.createElement('button');btn.dataset.gestaoAcaoButton='1';btn.type='button';btn.textContent='Gestão em Ação';btn.style.cssText='width:100%;border:0;background:linear-gradient(135deg,#0B6B3A,#14884E);color:#fff;border-radius:18px;padding:14px 16px;font-size:15px;font-weight:950;box-shadow:0 14px 30px rgba(11,107,58,.22);margin:12px 0';btn.onclick=buildModal;const home=document.querySelector('.fadeIn')||root.parentElement||root;const after=home.querySelector('.cslide')?.parentElement;if(after&&after.parentElement===home)after.insertAdjacentElement('afterend',btn);else home.prepend(btn)}
+  function hijackCard(){
+    const card=[...document.querySelectorAll('button')].find(btn=>(btn.textContent||'').includes('Transparência'));
+    if(!card)return false;
+    if(card.dataset.gaReady!=='1'){
+      card.dataset.gaReady='1';
+      const divs=[...card.querySelectorAll('div')];
+      divs.forEach(d=>{const t=(d.textContent||'').trim();if(t==='Transparência')d.textContent='Gestão em Ação';if(t.includes('receitas')||t.includes('despesas'))d.textContent='Acompanhe as ações realizadas pela administração.';});
+      card.onclick=(ev)=>{ev.preventDefault();buildModal();};
+    }
+    return true;
+  }
+  function addButton(){if(hijackCard())return;if(document.querySelector('[data-gestao-acao-button]'))return;}
   setInterval(addButton,600);
 })();
