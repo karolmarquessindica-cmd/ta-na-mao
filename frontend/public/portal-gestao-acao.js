@@ -8,24 +8,11 @@
     try{if(url.includes('/api/portal/')){const data=await res.clone().json();if(data&&data.condominio)portalPayload=data;}}catch{}
     return res;
   };
-  function keys(){
-    const id=portalPayload?.condominio?.id||'';
-    const nome=(portalPayload?.condominio?.nome||'').toLowerCase();
-    const all=[];
-    if(id)all.push('tnm_gestao_acao_feed_'+id);
-    for(let i=0;i<localStorage.length;i++){
-      const k=localStorage.key(i)||'';
-      if(k.startsWith('tnm_gestao_acao_feed_')&&!all.includes(k))all.push(k);
-    }
-    return all.filter(k=>{
-      if(!nome)return true;
-      try{const arr=JSON.parse(localStorage.getItem(k)||'[]');return !arr.length||arr.some(x=>String(x.condominioNome||'').toLowerCase()===nome||String(x.condominioId||'')===id)}catch{return true}
-    });
-  }
   function read(){
-    const map=new Map();
-    keys().forEach(k=>{try{(JSON.parse(localStorage.getItem(k)||'[]')||[]).forEach(x=>{if(x&&x.id)map.set(x.id,x)})}catch{}});
-    return [...map.values()].sort((a,b)=>new Date(b.data||b.createdAt||0)-new Date(a.data||a.createdAt||0));
+    const fromConfig=portalPayload?.config?.portalMorador?.gestaoAcao;
+    if(Array.isArray(fromConfig)&&fromConfig.length){return fromConfig.sort((a,b)=>new Date(b.data||b.createdAt||0)-new Date(a.data||a.createdAt||0));}
+    const id=portalPayload?.condominio?.id||'';const k='tnm_gestao_acao_feed_'+id;
+    try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]}
   }
   function dateBR(v){try{return new Date(String(v).includes('T')?v:v+'T12:00:00').toLocaleDateString('pt-BR')}catch{return v||''}}
   function post(item){
