@@ -9,7 +9,7 @@
     return res;
   };
   function read(){
-    const fromConfig=portalPayload?.config?.portalMorador?.gestaoAcao;
+    const fromConfig=portalPayload?.config?.gestaoAcao;
     if(Array.isArray(fromConfig)&&fromConfig.length){return fromConfig.sort((a,b)=>new Date(b.data||b.createdAt||0)-new Date(a.data||a.createdAt||0));}
     const id=portalPayload?.condominio?.id||'';const k='tnm_gestao_acao_feed_'+id;
     try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]}
