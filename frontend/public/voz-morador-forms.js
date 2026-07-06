@@ -16,28 +16,33 @@
   };
   const token=()=>localStorage.getItem('tnm_token')||'';
   const currentCondo=()=>{const txt=document.body.innerText||'';return condos.find(c=>txt.includes(c.nome))||condos[0]||null};
+  const cacheKey=id=>'tnm_voz_forms_'+id;
   async function saveLink(condo,link){
+    localStorage.setItem(cacheKey(condo.id),link||'');
     const r=await fetch(API+'/condominios/'+condo.id+'/portal-config',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify({portalMorador:{vozMoradorFormsUrl:link}})});
     if(!r.ok) throw new Error('Não foi possível salvar o link.');
   }
-  function adminButton(){
-    if(location.search.includes('portal=')||document.querySelector('[data-voz-form-admin]'))return;
+  function currentLink(condo){return localStorage.getItem(cacheKey(condo.id))||condo?.portalConfig?.portalMorador?.vozMoradorFormsUrl||''}
+  function adminCard(){
+    if(location.search.includes('portal=')||document.querySelector('[data-voz-form-card]'))return;
+    if(!/Configurar Portal do Morador/i.test(document.body.innerText||''))return;
     const c=currentCondo();
     if(!c)return;
-    const btn=document.createElement('button');
-    btn.dataset.vozFormAdmin='1';
-    btn.textContent='🔗 Link Voz do Morador';
-    btn.className='btn btn-ghost';
-    btn.style.cssText='position:fixed;right:22px;bottom:132px;z-index:9999;border-radius:999px;background:#fff;box-shadow:0 14px 34px rgba(0,59,36,.18)';
-    btn.onclick=async()=>{
-      const atual=c.portalConfig?.portalMorador?.vozMoradorFormsUrl||'';
-      const link=prompt('Cole o link do Google Forms para a Voz do Morador deste condomínio:',atual);
-      if(link===null)return;
-      const clean=String(link||'').trim();
+    const ref=[...document.querySelectorAll('input')].find(i=>String(i.value||i.placeholder||'').toLowerCase().includes('notebook'));
+    const refCard=ref?.closest('.card')||ref?.parentElement?.parentElement||[...document.querySelectorAll('.card')][0];
+    if(!refCard||!refCard.parentElement)return;
+    const card=document.createElement('div');
+    card.dataset.vozFormCard='1';
+    card.style.cssText='background:#f3fbf3;border:1px solid #d9ead8;border-radius:18px;padding:18px;margin-top:14px;color:#667085;max-width:270px';
+    card.innerHTML='<div style="font-size:18px;font-weight:800;color:#667085;line-height:1.2;margin-bottom:12px">Link da Voz do Morador / Google Forms</div><input data-voz-input type="url" placeholder="https://forms.gle/..." style="width:100%;box-sizing:border-box;border:1px solid #d9e5d4;border-radius:14px;padding:13px 14px;font-size:16px;background:white;color:#0f1a12;outline:none"><div style="font-size:14px;line-height:1.45;color:#667085;margin-top:12px">Quando o morador clicar em Voz do Morador, este link será aberto em uma nova aba.</div><button data-voz-save class="btn btn-primary" style="margin-top:12px;width:100%;justify-content:center">Salvar link</button>';
+    refCard.insertAdjacentElement('afterend',card);
+    const input=card.querySelector('[data-voz-input]');
+    input.value=currentLink(c);
+    card.querySelector('[data-voz-save]').onclick=async()=>{
+      const clean=String(input.value||'').trim();
       if(clean&&!/^https?:\/\//i.test(clean)){alert('Cole um link válido começando com http ou https.');return;}
       try{await saveLink(c,clean);alert(clean?'Link da Voz do Morador salvo.':'Link removido.');}catch(e){alert(e.message||'Erro ao salvar.')}
     };
-    document.body.appendChild(btn);
   }
   function portalLink(){return portal?.config?.vozMoradorFormsUrl||portal?.config?.vozMoradorLink||''}
   function portalBind(){
@@ -53,5 +58,5 @@
       window.open(link,'_blank','noopener,noreferrer');
     },true);
   }
-  setInterval(()=>{adminButton();portalBind()},700);
+  setInterval(()=>{adminCard();portalBind()},700);
 })();
