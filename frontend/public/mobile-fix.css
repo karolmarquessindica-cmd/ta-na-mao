@@ -8,6 +8,10 @@ body,
   overflow-x: hidden;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 img,
 svg,
 video,
@@ -139,9 +143,9 @@ body:has(.pnav) [aria-label*="calendar"] {
     top: 0 !important;
     left: 0 !important;
     bottom: 0 !important;
-    width: 286px !important;
-    min-width: 286px !important;
-    max-width: 286px !important;
+    width: min(286px, 84vw) !important;
+    min-width: 0 !important;
+    max-width: 84vw !important;
     z-index: 10020 !important;
     transform: translateX(-104%) !important;
     transition: transform .22s ease !important;
@@ -198,32 +202,57 @@ body:has(.pnav) [aria-label*="calendar"] {
   }
 
   .topbar {
-    padding-left: 66px !important;
+    padding-left: 70px !important;
     padding-right: 10px !important;
-    min-height: 62px !important;
+    min-height: 64px !important;
+    gap: 8px !important;
+    overflow: hidden !important;
   }
 
   .topbar h1,
   .topbar h2,
   .topbar .title {
     font-size: 18px !important;
+    white-space: nowrap !important;
+  }
+
+  .topbar > * {
+    min-width: 0 !important;
+  }
+
+  .topbar > *:last-child,
+  .topbar [class*="user"],
+  .topbar [class*="profile"] {
+    max-width: 150px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
 
   .page {
     width: 100% !important;
     max-width: 100% !important;
-    padding: 18px 12px 100px !important;
+    padding: 18px 14px 110px !important;
     margin: 0 !important;
     overflow-x: hidden !important;
   }
 
+  .page > * {
+    max-width: 100% !important;
+  }
+
   .page h1 {
-    font-size: 24px !important;
-    line-height: 1.08 !important;
+    font-size: 30px !important;
+    line-height: 1.05 !important;
+    margin-bottom: 10px !important;
   }
 
   .page h2 {
-    font-size: 20px !important;
+    font-size: 22px !important;
+  }
+
+  .page p {
+    max-width: 100% !important;
   }
 
   .row2,
@@ -233,17 +262,61 @@ body:has(.pnav) [aria-label*="calendar"] {
     grid-template-columns: 1fr !important;
   }
 
+  .page > div,
+  .page section,
+  .page article,
+  .page form,
+  .page main {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
   .card,
   .stat {
     width: 100% !important;
     max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .stat {
+    min-height: 120px !important;
+  }
+
+  .page [style*="display: grid"],
+  .page [style*="display:grid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .page [style*="display: flex"],
+  .page [style*="display:flex"] {
+    flex-wrap: wrap !important;
+  }
+
+  .page [style*="min-width"] {
+    min-width: 0 !important;
+  }
+
+  .page [style*="width: 320px"],
+  .page [style*="width:320px"],
+  .page [style*="width: 360px"],
+  .page [style*="width:360px"] {
+    width: 100% !important;
   }
 
   input,
   select,
   textarea,
-  .btn {
+  .btn,
+  button {
     max-width: 100% !important;
+  }
+
+  select,
+  input[type="date"],
+  input[type="text"],
+  input[type="url"],
+  input[type="search"] {
+    width: 100% !important;
   }
 
   [data-ga-admin-btn],
