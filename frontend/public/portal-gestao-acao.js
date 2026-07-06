@@ -1,60 +1,48 @@
 (()=>{
   if(!location.search.includes('portal=')) return;
-  let portalPayload=null;
-  const originalFetch=window.fetch.bind(window);
+  let payload=null;
+  const oldFetch=window.fetch.bind(window);
   window.fetch=async function(input,init){
     const url=typeof input==='string'?input:(input&&input.url)||'';
-    const res=await originalFetch(input,init);
-    try{if(url.includes('/api/portal/')){const data=await res.clone().json();if(data&&data.condominio)portalPayload=data;}}catch{}
+    const res=await oldFetch(input,init);
+    try{if(url.includes('/api/portal/')){const d=await res.clone().json();if(d&&d.condominio)payload=d;}}catch{}
     return res;
   };
-  function read(){
-    const fromConfig=portalPayload?.config?.gestaoAcao;
-    if(Array.isArray(fromConfig)&&fromConfig.length){return fromConfig.sort((a,b)=>new Date(b.data||b.createdAt||0)-new Date(a.data||a.createdAt||0));}
-    const id=portalPayload?.condominio?.id||'';const k='tnm_gestao_acao_feed_'+id;
-    try{return JSON.parse(localStorage.getItem(k)||'[]')}catch{return[]}
+  function items(){
+    const a=payload?.config?.gestaoAcao;
+    if(Array.isArray(a)) return a.filter(x=>x.publicadoPortal!==false);
+    return [];
   }
   function dateBR(v){try{return new Date(String(v).includes('T')?v:v+'T12:00:00').toLocaleDateString('pt-BR')}catch{return v||''}}
-  function post(item){
-    const card=document.createElement('article');
-    card.style.cssText='background:#fff;border:1px solid #E4ECE2;border-radius:22px;padding:14px;margin-bottom:14px;box-shadow:0 14px 34px rgba(1,23,12,.10);overflow:hidden';
-    const top=document.createElement('div');top.style.cssText='display:flex;gap:10px;align-items:center;margin-bottom:10px';
-    const av=document.createElement('div');av.textContent='🏢';av.style.cssText='width:42px;height:42px;border-radius:999px;background:#DCFCE7;display:flex;align-items:center;justify-content:center;font-size:20px';
-    const info=document.createElement('div');info.style.cssText='flex:1;min-width:0';
-    const n=document.createElement('div');n.textContent=portalPayload?.condominio?.nome||item.condominioNome||'Administração';n.style.cssText='font-size:14px;font-weight:950;color:#0C140D';
-    const d=document.createElement('div');d.textContent=dateBR(item.data||item.createdAt)+(item.local?' • '+item.local:'');d.style.cssText='font-size:12px;color:#667085';
-    info.append(n,d);top.append(av,info);card.appendChild(top);
-    const title=document.createElement('div');title.textContent=item.titulo||'Registro da Gestão';title.style.cssText='font-size:15px;font-weight:950;color:#101828;margin-bottom:6px';card.appendChild(title);
-    if(item.legenda){const leg=document.createElement('div');leg.textContent=item.legenda;leg.style.cssText='font-size:13px;color:#344038;line-height:1.45;white-space:pre-wrap;margin-bottom:12px';card.appendChild(leg)}
+  function card(item){
+    const c=document.createElement('div');
+    c.style.cssText='background:#fff;color:#101828;border-radius:20px;padding:14px;margin:0 0 12px;box-shadow:0 12px 28px rgba(0,0,0,.18)';
+    const h=document.createElement('div');h.textContent=item.titulo||'Registro da Gestão';h.style.cssText='font-size:15px;font-weight:900;margin-bottom:5px';c.appendChild(h);
+    const m=document.createElement('div');m.textContent=(dateBR(item.data||item.createdAt))+(item.local?' • '+item.local:'');m.style.cssText='font-size:12px;color:#667085;margin-bottom:8px';c.appendChild(m);
+    if(item.legenda){const p=document.createElement('div');p.textContent=item.legenda;p.style.cssText='font-size:13px;line-height:1.45;color:#344038;white-space:pre-wrap';c.appendChild(p)}
     const fotos=Array.isArray(item.fotos)?item.fotos:[];
-    if(fotos.length){const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:'+(fotos.length===1?'1fr':'1fr 1fr')+';gap:6px;margin:10px -2px 12px';fotos.slice(0,4).forEach(src=>{const img=document.createElement('img');img.src=src;img.style.cssText='width:100%;height:170px;object-fit:cover;border-radius:15px;background:#EEF3EE;display:block';grid.appendChild(img)});card.appendChild(grid)}
-    const foot=document.createElement('div');foot.style.cssText='display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid #EEF3EE;padding-top:10px';
-    const st=document.createElement('span');st.textContent=item.status||'Concluído';st.style.cssText='background:#DCFCE7;color:#166534;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:900';foot.appendChild(st);
-    if(item.categoria){const cat=document.createElement('span');cat.textContent=item.categoria;cat.style.cssText='background:#F5F8F3;color:#53605A;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:800';foot.appendChild(cat)}
-    card.appendChild(foot);return card;
+    fotos.slice(0,4).forEach(src=>{const img=document.createElement('img');img.src=src;img.style.cssText='width:100%;height:150px;object-fit:cover;border-radius:14px;margin-top:9px;background:#eef3ee';c.appendChild(img)});
+    const s=document.createElement('span');s.textContent=item.status||'Concluído';s.style.cssText='display:inline-block;margin-top:10px;background:#dcfce7;color:#166534;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:900';c.appendChild(s);
+    return c;
   }
-  function buildModal(){
-    document.querySelector('[data-gestao-acao-modal]')?.remove();
-    const overlay=document.createElement('div');overlay.dataset.gestaoAcaoModal='1';overlay.style.cssText='position:fixed;inset:0;background:rgba(2,18,10,.55);z-index:99999;display:flex;align-items:flex-end;justify-content:center;padding:12px';
-    const modal=document.createElement('div');modal.style.cssText='width:min(720px,100%);max-height:88vh;overflow:auto;background:#F7FAF5;border-radius:28px 28px 22px 22px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:18px';overlay.appendChild(modal);
-    const head=document.createElement('div');head.style.cssText='display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px';
-    const txt=document.createElement('div');txt.innerHTML='<div style="font-size:22px;font-weight:950;color:#0C140D;letter-spacing:-.03em">Gestão em Ação</div><div style="font-size:13px;color:#667085;margin-top:4px">Acompanhe as ações realizadas pela administração.</div>';
-    const close=document.createElement('button');close.textContent='×';close.style.cssText='width:38px;height:38px;border-radius:999px;border:0;background:#E7EEE4;color:#0C140D;font-size:26px;font-weight:800';close.onclick=()=>overlay.remove();head.append(txt,close);modal.appendChild(head);
-    const feed=read().filter(x=>x.publicadoPortal!==false);
-    if(!feed.length){const empty=document.createElement('div');empty.textContent='Nenhuma publicação da Gestão em Ação foi publicada ainda.';empty.style.cssText='background:#fff;border:1px dashed #D9E5D4;border-radius:18px;padding:18px;font-size:13px;color:#667085;text-align:center';modal.appendChild(empty)}else feed.forEach(item=>modal.appendChild(post(item)));
-    document.body.appendChild(overlay);
+  function render(box){
+    box.textContent='';
+    const title=document.createElement('h2');title.textContent='Gestão em Ação';title.style.cssText='font-family:Sora,sans-serif;font-size:22px;font-weight:950;color:#fff;margin:0 0 6px';box.appendChild(title);
+    const sub=document.createElement('p');sub.textContent='Acompanhe as ações realizadas pela administração do condomínio.';sub.style.cssText='font-size:13px;color:rgba(255,255,255,.75);margin:0 0 16px;line-height:1.45';box.appendChild(sub);
+    const list=items();
+    if(!list.length){const empty=document.createElement('div');empty.textContent='Nenhuma publicação da Gestão em Ação foi publicada ainda.';empty.style.cssText='background:#fff;color:#667085;border:1px dashed #d9e5d4;border-radius:18px;padding:18px;text-align:center;font-size:13px';box.appendChild(empty);return;}
+    list.forEach(x=>box.appendChild(card(x)));
   }
-  function hijackCard(){
-    const card=[...document.querySelectorAll('button')].find(btn=>(btn.textContent||'').includes('Transparência'));
-    if(!card)return false;
-    if(card.dataset.gaReady!=='1'){
-      card.dataset.gaReady='1';
-      const divs=[...card.querySelectorAll('div')];
-      divs.forEach(d=>{const t=(d.textContent||'').trim();if(t==='Transparência')d.textContent='Gestão em Ação';if(t.includes('receitas')||t.includes('despesas'))d.textContent='Acompanhe as ações realizadas pela administração.';});
-      card.onclick=(ev)=>{ev.preventDefault();buildModal();};
+  function run(){
+    const homeCard=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').includes('Transparência'));
+    if(homeCard&&homeCard.dataset.ga!=='1'){
+      homeCard.dataset.ga='1';
+      [...homeCard.querySelectorAll('div')].forEach(d=>{const t=(d.textContent||'').trim();if(t==='Transparência')d.textContent='Gestão em Ação';if(t.includes('receitas')||t.includes('despesas'))d.textContent='Acompanhe as ações realizadas pela administração.'});
     }
-    return true;
+    const h=[...document.querySelectorAll('h1,h2,h3')].find(x=>(x.textContent||'').trim()==='Transparência');
+    if(!h)return;
+    const box=h.closest('.fadeIn')||h.parentElement;
+    if(box&&box.dataset.gaPage!=='1'){box.dataset.gaPage='1';render(box)}
   }
-  function addButton(){if(hijackCard())return;if(document.querySelector('[data-gestao-acao-button]'))return;}
-  setInterval(addButton,600);
+  setInterval(run,400);
 })();
