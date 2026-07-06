@@ -33,11 +33,22 @@
     if(!list.length){const empty=document.createElement('div');empty.textContent='Nenhuma publicação da Gestão em Ação foi publicada ainda.';empty.style.cssText='background:#fff;color:#667085;border:1px dashed #d9e5d4;border-radius:18px;padding:18px;text-align:center;font-size:13px';box.appendChild(empty);return;}
     list.forEach(x=>box.appendChild(card(x)));
   }
+  function swapIcon(homeCard){
+    const iconWrap=homeCard.querySelector('svg')?.parentElement;
+    if(!iconWrap||iconWrap.dataset.clipboardIcon==='1')return;
+    iconWrap.dataset.clipboardIcon='1';
+    iconWrap.innerHTML='📋';
+    iconWrap.style.fontSize='24px';
+    iconWrap.style.color='#08783f';
+  }
   function run(){
-    const homeCard=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').includes('Transparência'));
-    if(homeCard&&homeCard.dataset.ga!=='1'){
-      homeCard.dataset.ga='1';
-      [...homeCard.querySelectorAll('div')].forEach(d=>{const t=(d.textContent||'').trim();if(t==='Transparência')d.textContent='Gestão em Ação';if(t.includes('receitas')||t.includes('despesas'))d.textContent='Acompanhe as ações realizadas pela administração.'});
+    const homeCard=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').includes('Transparência')||(b.textContent||'').includes('Acompanhe as ações'));
+    if(homeCard){
+      swapIcon(homeCard);
+      if(homeCard.dataset.ga!=='1'){
+        homeCard.dataset.ga='1';
+        [...homeCard.querySelectorAll('div')].forEach(d=>{const t=(d.textContent||'').trim();if(t==='Transparência')d.textContent='Gestão em Ação';if(t.includes('receitas')||t.includes('despesas'))d.textContent='Acompanhe as ações realizadas pela administração.'});
+      }
     }
     const h=[...document.querySelectorAll('h1,h2,h3')].find(x=>(x.textContent||'').trim()==='Transparência');
     if(!h)return;
