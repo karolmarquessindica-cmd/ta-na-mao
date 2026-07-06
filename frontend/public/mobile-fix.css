@@ -120,3 +120,109 @@ body:has(.pnav) [aria-label*="calendar"] {
 .table td {
   border-bottom: 1px solid #edf2ea !important;
 }
+
+@media (max-width: 768px) {
+  html,
+  body,
+  #root {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  .sidebar {
+    width: 86px !important;
+    min-width: 86px !important;
+    max-width: 86px !important;
+    overflow-x: hidden !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    box-shadow: 6px 0 18px rgba(0, 21, 11, 0.18) !important;
+  }
+
+  .sidebar .logo,
+  .sidebar [class*="logo"],
+  .sidebar h1,
+  .sidebar h2,
+  .sidebar p,
+  .sidebar small,
+  .sidebar .section,
+  .sidebar [class*="section"],
+  .sidebar .label,
+  .sidebar [class*="label"] {
+    display: none !important;
+  }
+
+  .sidebar a,
+  .sidebar button,
+  .sidebar .nav-item,
+  .sidebar [class*="nav"] {
+    width: 56px !important;
+    min-width: 56px !important;
+    height: 56px !important;
+    padding: 0 !important;
+    margin: 8px auto !important;
+    border-radius: 18px !important;
+    justify-content: center !important;
+    gap: 0 !important;
+    font-size: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .sidebar svg,
+  .sidebar i {
+    width: 24px !important;
+    height: 24px !important;
+    margin: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .main {
+    margin-left: 86px !important;
+    width: calc(100vw - 86px) !important;
+    max-width: calc(100vw - 86px) !important;
+    overflow-x: hidden !important;
+  }
+
+  .topbar {
+    padding-left: 98px !important;
+    padding-right: 10px !important;
+    min-height: 54px !important;
+  }
+
+  .page {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 14px 10px 90px !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  .page h1 {
+    font-size: 24px !important;
+    line-height: 1.08 !important;
+  }
+
+  .page h2 {
+    font-size: 20px !important;
+  }
+
+  .row2,
+  .row3,
+  .grid,
+  [class*="grid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .card,
+  .stat {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  [data-ga-admin-btn],
+  [data-ga-manager-btn],
+  [data-voz-form-admin] {
+    display: none !important;
+  }
+}
