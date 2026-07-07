@@ -34,12 +34,17 @@
     list.forEach(x=>box.appendChild(card(x)));
   }
   function swapIcon(homeCard){
-    const iconWrap=homeCard.querySelector('svg')?.parentElement;
+    const svgs=[...homeCard.querySelectorAll('svg')];
+    const iconSvg=svgs[0];
+    if(!iconSvg)return;
+    const iconWrap=iconSvg.parentElement;
     if(!iconWrap||iconWrap.dataset.clipboardIcon==='1')return;
     iconWrap.dataset.clipboardIcon='1';
-    iconWrap.innerHTML='📋';
-    iconWrap.style.fontSize='24px';
-    iconWrap.style.color='#08783f';
+    iconWrap.innerHTML='<span aria-hidden="true" style="font-size:22px;line-height:1;color:#08783f">📋</span>';
+  }
+  function restoreAction(homeCard){
+    const action=[...homeCard.querySelectorAll('span,div')].find(el=>el!==homeCard&&el.textContent.trim()==='📋'&&el.getBoundingClientRect().width<42&&el.getBoundingClientRect().height<42);
+    if(action&&action.closest('[data-clipboard-icon]')!==action){action.textContent='›'}
   }
   function run(){
     const homeCard=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').includes('Transparência')||(b.textContent||'').includes('Acompanhe as ações'));
@@ -49,6 +54,7 @@
         homeCard.dataset.ga='1';
         [...homeCard.querySelectorAll('div')].forEach(d=>{const t=(d.textContent||'').trim();if(t==='Transparência')d.textContent='Gestão em Ação';if(t.includes('receitas')||t.includes('despesas'))d.textContent='Acompanhe as ações realizadas pela administração.'});
       }
+      restoreAction(homeCard);
     }
     const h=[...document.querySelectorAll('h1,h2,h3')].find(x=>(x.textContent||'').trim()==='Transparência');
     if(!h)return;
