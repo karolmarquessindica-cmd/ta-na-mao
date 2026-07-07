@@ -12,7 +12,6 @@ import { deleteFile, isS3Enabled, multerUpload, storageKeyFromUrl, uploadFile } 
 export const bannerRouter = Router()
 bannerRouter.use(authenticate)
 
-const UPLOAD_DIR = 'uploads'
 const MAX_BANNER_SIZE = 8 * 1024 * 1024
 
 function apiOrigin(req) {
@@ -21,6 +20,7 @@ function apiOrigin(req) {
 
 function publicFileUrl(req, value) {
   if (!value) return value
+  if (/^data:image\//i.test(value)) return value
   if (/^https?:\/\//i.test(value)) return value
   if (value.startsWith('/uploads/')) return `${apiOrigin(req)}${value}`
   const key = String(value).replace(/^\/+/, '')
@@ -47,20 +47,19 @@ function unlinkTmp(file) {
   }
 }
 
+function localFileToDataUrl(file) {
+  const mime = file.mimetype || 'image/jpeg'
+  const buffer = file.buffer || fs.readFileSync(file.path)
+  return `data:${mime};base64,${buffer.toString('base64')}`
+}
+
 async function uploadBannerFile(file) {
-  try {
-    return await uploadFile(file, 'banners')
-  } catch (error) {
-    console.warn('[banners] upload principal falhou. Usando fallback local:', error.message)
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-    const ext = path.extname(file.originalname || '') || '.img'
-    const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`
-    const target = path.join(UPLOAD_DIR, filename)
-    if (file.buffer) fs.writeFileSync(target, file.buffer)
-    else if (file.path && fs.existsSync(file.path)) fs.copyFileSync(file.path, target)
-    else throw error
-    return { key: `${UPLOAD_DIR}/${filename}`, url: `/uploads/${filename}` }
+  if (!isS3Enabled) {
+    const dataUrl = localFileToDataUrl(file)
+    unlinkTmp(file)
+    return { key: dataUrl, url: dataUrl }
   }
+  return uploadFile(file, 'banners')
 }
 
 bannerRouter.get('/', async (req, res, next) => {
