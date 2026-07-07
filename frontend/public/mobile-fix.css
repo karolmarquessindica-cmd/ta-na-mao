@@ -327,13 +327,35 @@ body:has(.pnav) [aria-label*="calendar"] {
   [data-ga-manager-btn] {
     display: flex !important;
     position: fixed !important;
-    right: 14px !important;
+    right: 16px !important;
     bottom: calc(env(safe-area-inset-bottom, 0px) + 18px) !important;
     z-index: 10040 !important;
-    max-width: calc(100vw - 28px) !important;
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+    padding: 0 !important;
+    border: 0 !important;
     border-radius: 999px !important;
     background: #08783f !important;
+    color: transparent !important;
+    overflow: hidden !important;
+    text-indent: -9999px !important;
+    box-shadow: 0 14px 34px rgba(0,59,36,.32) !important;
+  }
+
+  [data-ga-admin-btn]::after,
+  [data-ga-manager-btn]::after {
+    content: "+" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     color: #fff !important;
-    box-shadow: 0 14px 34px rgba(0,59,36,.28) !important;
+    text-indent: 0 !important;
+    font-size: 34px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
   }
 }
