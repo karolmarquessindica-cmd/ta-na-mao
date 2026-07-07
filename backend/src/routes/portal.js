@@ -46,6 +46,19 @@ const portalMoradorDefault = {
   },
 }
 
+function apiOrigin(req) {
+  return `${req.protocol}://${req.get('host')}`
+}
+
+function publicImageUrl(req, value) {
+  if (!value) return value
+  if (/^data:image\//i.test(value)) return value
+  if (/^https?:\/\//i.test(value)) return value
+  if (String(value).startsWith('/uploads/')) return `${apiOrigin(req)}${value}`
+  const key = String(value).replace(/^\/+/, '')
+  return `${apiOrigin(req)}/api/arquivos/${key}`
+}
+
 function normalizePortalConfig(config = {}) {
   const portal = config?.portalMorador || {}
   return {
@@ -297,7 +310,7 @@ async function validatePortalFiles(files = []) {
   }
 }
 
-function buildPortalPayload(condominio) {
+function buildPortalPayload(condominio, req) {
   const config = normalizePortalConfig(condominio.portalConfig)
   const portal = config.portalMorador
   const bannerIds = new Set(portal.bannerIds || [])
@@ -305,7 +318,10 @@ function buildPortalPayload(condominio) {
 
   const banners = (condominio.banners || [])
     .filter(item => bannerIds.has(item.id))
-    .map(item => ({ ...item, descricao: portal.bannerMeta?.[item.id]?.descricao || '' }))
+    .map(item => {
+      const imagemUrl = publicImageUrl(req, item.imagem)
+      return { ...item, imagem: imagemUrl, imagemOriginal: item.imagem, imagemUrl, descricao: portal.bannerMeta?.[item.id]?.descricao || '' }
+    })
     .sort((a, b) => (a.ordem || 0) - (b.ordem || 0))
 
   const comunicados = (condominio.comunicados || [])
@@ -367,7 +383,7 @@ portalRouter.get('/me', authenticate, async (req, res, next) => {
     if (!condominio) return res.status(404).json({ error: 'Condominio nao encontrado', code: 'NOT_FOUND' })
     const config = normalizePortalConfig(condominio.portalConfig).portalMorador
     if (!config.ativo) return res.status(403).json({ error: 'Portal inativo', code: 'PORTAL_INACTIVE' })
-    res.json(buildPortalPayload(condominio))
+    res.json(buildPortalPayload(condominio, req))
   } catch (e) { next(e) }
 })
 
@@ -377,7 +393,7 @@ portalRouter.get('/:token', async (req, res, next) => {
     if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
     const config = normalizePortalConfig(condominio.portalConfig).portalMorador
     if (config.ativo === false || config.permitirLink === false) return res.status(403).json({ error: 'Portal indisponivel', code: 'PORTAL_UNAVAILABLE' })
-    res.json(buildPortalPayload(condominio))
+    res.json(buildPortalPayload(condominio, req))
   } catch (e) { next(e) }
 })
 
@@ -431,125 +447,8 @@ portalRouter.get('/:token/chamados/:id', async (req, res, next) => {
   try {
     const condominio = await findCondominioByPortalToken(req.params.token)
     if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
-    const chamado = await prisma.chamado.findFirst({
-      where: { id: req.params.id, condominioId: condominio.id },
-      select: { id: true, status: true, categoria: true, descricao: true, resposta: true, createdAt: true, dataConclusao: true },
-    })
-    if (!chamado) return res.status(404).json({ error: 'Chamado nao encontrado neste portal', code: 'TICKET_NOT_FOUND' })
+    const chamado = await prisma.chamado.findFirst({ where: { id: req.params.id, condominioId: condominio.id } })
+    if (!chamado) return res.status(404).json({ error: 'Chamado nao encontrado', code: 'NOT_FOUND' })
     res.json(chamado)
-  } catch (e) { next(e) }
-})
-
-portalRouter.get('/:token/manutencoes/:id/report', async (req, res, next) => {
-  try {
-    const condominio = await findCondominioByPortalToken(req.params.token)
-    if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
-    const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
-    if (!portal.funcionalidades?.relatoriosManutencao) {
-      return res.status(403).json({ error: 'Relatorios de manutencao nao estao liberados neste portal', code: 'REPORTS_DISABLED' })
-    }
-    const item = await prisma.manutencao.findFirst({
-      where: { id: req.params.id, condominioId: condominio.id },
-      include: { inventario: { select: { id: true, nome: true, categoria: true } } },
-    })
-    if (!item || item.status !== 'CONCLUIDO') return res.status(404).json({ error: 'Relatorio indisponivel para esta manutencao', code: 'REPORT_NOT_FOUND' })
-    const report = publicReportPayload(item, portal)
-    if (!report) return res.status(404).json({ error: 'Nenhum relatorio foi enviado para esta manutencao', code: 'REPORT_NOT_FOUND' })
-    res.json(report)
-  } catch (e) { next(e) }
-})
-
-portalRouter.post('/:token/voz/:id/votar', async (req, res, next) => {
-  try {
-    const condominio = await findCondominioByPortalToken(req.params.token)
-    if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
-    const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
-    if (portal.ativo === false || portal.permitirLink === false || !portal.funcionalidades?.vozMorador) {
-      return res.status(403).json({ error: 'Voz do Morador indisponivel neste portal', code: 'VOICE_DISABLED' })
-    }
-    const voz = await prisma.vozMorador.findFirst({
-      where: {
-        id: req.params.id,
-        condominioId: condominio.id,
-        ativo: true,
-        visivelPortal: true,
-        tipo: { in: ['SUGESTAO_MELHORIA', 'PAUTA_ASSEMBLEIA', 'PARCEIRO'] },
-      },
-    })
-    if (!voz) return res.status(404).json({ error: 'Publicacao nao encontrada neste portal', code: 'VOICE_NOT_FOUND' })
-
-    const participante = await portalParticipantUser(condominio.id, req.body?.visitorId)
-    const existing = await prisma.voto.findUnique({
-      where: { userId_vozId: { userId: participante.id, vozId: voz.id } },
-    })
-    if (existing) {
-      await prisma.voto.delete({ where: { id: existing.id } })
-      return res.json({ action: 'removed' })
-    }
-    await prisma.voto.create({ data: { userId: participante.id, vozId: voz.id } })
-    res.json({ action: 'added' })
-  } catch (e) { next(e) }
-})
-
-portalRouter.post('/:token/voz/:id/comentar', async (req, res, next) => {
-  try {
-    const condominio = await findCondominioByPortalToken(req.params.token)
-    if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
-    const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
-    if (portal.ativo === false || portal.permitirLink === false || !portal.funcionalidades?.vozMorador) {
-      return res.status(403).json({ error: 'Voz do Morador indisponivel neste portal', code: 'VOICE_DISABLED' })
-    }
-    const voz = await prisma.vozMorador.findFirst({
-      where: {
-        id: req.params.id,
-        condominioId: condominio.id,
-        ativo: true,
-        visivelPortal: true,
-        tipo: { in: ['SUGESTAO_MELHORIA', 'PAUTA_ASSEMBLEIA', 'PARCEIRO'] },
-      },
-    })
-    if (!voz) return res.status(404).json({ error: 'Publicacao nao encontrada neste portal', code: 'VOICE_NOT_FOUND' })
-
-    const texto = String(req.body?.texto || '').trim()
-    if (!texto) return res.status(400).json({ error: 'Comentario obrigatorio', code: 'VALIDATION_ERROR' })
-    const participante = await portalParticipantUser(condominio.id, req.body?.visitorId)
-    const item = await prisma.comentario.create({
-      data: { texto, autorId: participante.id, vozId: voz.id },
-      include: { autor: { select: { id: true, nome: true } } },
-    })
-    res.status(201).json(item)
-  } catch (e) { next(e) }
-})
-
-portalRouter.post('/:token/ia', async (req, res, next) => {
-  try {
-    const condominio = await findCondominioByPortalToken(req.params.token)
-    if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
-    const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
-    if (!portal.funcionalidades?.iaChat) return res.status(403).json({ error: 'Assistente indisponivel neste portal', code: 'AI_DISABLED' })
-
-    const message = String(req.body?.message || '').toLowerCase()
-    const payload = buildPortalPayload(condominio)
-    const docs = payload.documentos.slice(0, 4).map(doc => doc.titulo || doc.nome).join(', ') || 'nenhum documento publico configurado'
-    const docsIa = payload.documentosIa || []
-    const iaDocs = docsIa.slice(0, 5).map(doc => doc.titulo || doc.nome).join(', ') || 'nenhum documento liberado para a IA'
-    const financeiros = docsIa.filter(doc => /balanc|finance|prestacao|contas|receita|despesa|orcament/i.test(`${doc.titulo || doc.nome} ${doc.categoria || doc.pasta} ${doc.tipoDocumento || doc.tipo}`))
-    const avisos = payload.comunicados.slice(0, 3).map(item => item.titulo).join(', ') || 'nenhum comunicado ativo'
-    const manuts = payload.manutencoesPrevistas.slice(0, 4).map(item => `${item.nome} em ${new Date(item.data).toLocaleDateString('pt-BR')}`).join('; ') || 'nenhuma manutencao publica prevista'
-    const perguntaFinanceira = /balanc|finance|receita|despesa|prestacao|contas|diverg|fraude|erro|orcament|inadimpl/.test(message)
-
-    let answer = `Posso ajudar com documentos, comunicados, manutencoes publicas, chamados e uso das areas comuns do ${condominio.nome}.`
-    if (perguntaFinanceira) {
-      answer = financeiros.length
-        ? `Posso apoiar a leitura financeira com base nos documentos liberados para a IA: ${financeiros.map(doc => doc.titulo || doc.nome).join(', ')}. Posso explicar receitas e despesas, resumir a prestacao de contas e apontar variacoes relevantes. Se houver algo fora do padrao, a resposta correta e: "Encontrei uma possível divergência que precisa ser verificada pelo síndico/contador."`
-        : 'Ainda nao ha balancetes ou relatorios financeiros liberados para a IA deste portal.'
-    }
-    else if (message.includes('document')) answer = `Documentos publicos disponiveis: ${docs}. Base liberada para respostas da IA: ${iaDocs}.`
-    else if (message.includes('comunic') || message.includes('aviso')) answer = `Comunicados ativos: ${avisos}.`
-    else if (message.includes('manuten')) answer = `Manutencoes publicas: ${manuts}.`
-    else if (message.includes('chamado')) answer = 'Para abrir um chamado, toque em Chamados no menu inferior e preencha categoria, local, descricao e fotos.'
-    else if (message.includes('contato') || message.includes('whatsapp')) answer = 'Os contatos autorizados pelo sindico ficam no botao Contatos / Colaboradores da tela inicial.'
-
-    res.json({ answer })
   } catch (e) { next(e) }
 })
