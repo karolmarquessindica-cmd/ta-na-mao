@@ -38,6 +38,25 @@
     if(!items.length){list.innerHTML='<div style="padding:18px;border:1px dashed #DDE7DE;border-radius:16px;color:#68766D;text-align:center">Nenhuma publicação cadastrada ainda.</div>';return;}
     items.forEach(item=>{const card=document.createElement('div');card.style.cssText='border:1px solid #E4ECE2;border-radius:18px;padding:14px;margin-bottom:10px;background:#FDFEFC';card.innerHTML='<div style="font-weight:950;color:#0C140D;margin-bottom:4px">'+(item.titulo||'Registro da Gestão')+'</div><div style="font-size:12px;color:#68766D;margin-bottom:10px">'+(item.data||'')+' • '+(item.local||'Sem local')+' • '+(item.publicadoPortal!==false?'Publicado':'Interno')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button data-edit class="btn btn-sm btn-ghost">Editar</button><button data-toggle class="btn btn-sm btn-ghost">'+(item.publicadoPortal!==false?'Ocultar do portal':'Publicar no portal')+'</button><button data-del class="btn btn-sm btn-danger">Apagar</button></div>';card.querySelector('[data-edit]').onclick=()=>{overlay.remove();openForm(item);};card.querySelector('[data-toggle]').onclick=()=>{write(c.id,read(c.id).map(x=>x.id===item.id?{...x,publicadoPortal:x.publicadoPortal===false}:x));overlay.remove();openManager();};card.querySelector('[data-del]').onclick=()=>{if(confirm('Apagar esta publicação?')){write(c.id,read(c.id).filter(x=>x.id!==item.id));overlay.remove();openManager();}};list.appendChild(card);});
   }
-  function addBtn(){if(document.querySelector('[data-ga-manager-btn]'))return;const nav=[...document.querySelectorAll('button,.nav-item')].find(el=>(el.textContent||'').includes('Gestão em Ação'));if(nav&&nav.parentElement){const b=document.createElement('button');b.dataset.gaManagerBtn='1';b.textContent='Publicações Gestão em Ação';b.className='btn btn-ghost';b.style.cssText='margin:10px 0;border-radius:14px;width:100%;justify-content:center';b.onclick=openManager;nav.insertAdjacentElement('afterend',b);return;}const btn=document.createElement('button');btn.dataset.gaManagerBtn='1';btn.textContent='📋 Publicações Gestão em Ação';btn.className='btn btn-ghost';btn.style.cssText='position:fixed;right:22px;bottom:84px;z-index:9999;border-radius:999px;box-shadow:0 14px 34px rgba(0,59,36,.18);background:#fff';btn.onclick=openManager;document.body.appendChild(btn);}
+  function styleMobileButton(btn){
+    if(window.innerWidth>768)return;
+    btn.textContent='+';
+    btn.title='Publicações Gestão em Ação';
+    btn.setAttribute('aria-label','Publicações Gestão em Ação');
+    btn.style.cssText='position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);z-index:10040;width:58px;height:58px;border-radius:999px;border:0;background:#08783f;color:#fff;font-size:34px;line-height:1;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 14px 34px rgba(0,59,36,.32)';
+  }
+  function addBtn(){
+    const buttons=[...document.querySelectorAll('[data-ga-manager-btn]')];
+    buttons.slice(1).forEach(b=>b.remove());
+    if(buttons[0]){styleMobileButton(buttons[0]);return;}
+    const btn=document.createElement('button');
+    btn.dataset.gaManagerBtn='1';
+    btn.textContent='📋 Publicações Gestão em Ação';
+    btn.className='btn btn-ghost';
+    btn.style.cssText='position:fixed;right:22px;bottom:84px;z-index:9999;border-radius:999px;box-shadow:0 14px 34px rgba(0,59,36,.18);background:#fff';
+    btn.onclick=openManager;
+    document.body.appendChild(btn);
+    styleMobileButton(btn);
+  }
   setInterval(addBtn,900);
 })();
