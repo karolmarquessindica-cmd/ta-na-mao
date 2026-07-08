@@ -25,6 +25,8 @@ import { reservaRouter }     from './routes/reserva.js'
 import { relatorioRouter }   from './routes/relatorio.js'
 import { iaRouter }          from './routes/ia.js'
 import { condominioRouter }  from './routes/condominio.js'
+import { condominioLogoSafeRouter } from './routes/condominioLogoSafe.js'
+import { logoDataPublicRouter } from './routes/logoDataPublic.js'
 import { portalConfigSaveSafeRouter } from './routes/portalConfigSaveSafe.js'
 import { portalConfigCompatRouter } from './routes/portalConfigCompat.js'
 import { portalDocumentosSafeRouter } from './routes/portalDocumentosSafe.js'
@@ -99,6 +101,7 @@ app.use(requestId)
 app.use('/api', apiLimiter)
 
 app.use('/api/auth',          authRouter)
+app.use('/api/logo-data',     logoDataPublicRouter)
 app.use('/api/manutencoes',   manutencaoPlanejamentoRouter)
 app.use('/api/manutencoes',   manutencaoRouter)
 app.use('/api/maintenance',   manutencaoPlanejamentoRouter)
@@ -120,6 +123,7 @@ app.use('/api/ia',            iaRouter)
 app.use('/api/condominios',   portalConfigSaveSafeRouter)
 app.use('/api/condominios',   portalConfigCompatRouter)
 app.use('/api/condominios',   portalDocumentosSafeRouter)
+app.use('/api/condominios',   condominioLogoSafeRouter)
 app.use('/api/condominios',   condominioRouter)
 app.use('/api/portal-public', portalPublicSafeRouter)
 app.use('/api/public/portal', portalPublicSafeRouter)
