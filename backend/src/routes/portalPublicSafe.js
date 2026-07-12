@@ -22,9 +22,18 @@ const safeDocumentoSelect = { id: true, nome: true, descricao: true, pasta: true
 const safeManutencaoSelect = { id: true, titulo: true, descricao: true, tipo: true, status: true, prioridade: true, responsavel: true, empresa: true, dataVencimento: true, dataConclusao: true, observacoes: true, createdAt: true, updatedAt: true, condominioId: true }
 
 const portalMoradorDefault = {
-  ativo: true, permitirLink: true, permitirQrCode: true, token: null, bannerIds: [], bannerMeta: {}, comunicadoIds: [], comunicadoMeta: {}, documentoIds: [], documentoMeta: {}, contatos: [],
+  ativo: true, permitirLink: true, permitirQrCode: true, token: null, portalSlug: '', bannerIds: [], bannerMeta: {}, comunicadoIds: [], comunicadoMeta: {}, documentoIds: [], documentoMeta: {}, contatos: [],
   funcionalidades: { abrirChamado: true, planoManutencao: true, documentos: true, comunicados: true, vozMorador: true, denuncias: true, reservas: true, iaChat: true, contatosResponsaveis: true, relatoriosManutencao: true, valoresNotasFiscais: false },
   informacoes: { nome: true, endereco: true, responsaveis: true, telefones: true, email: true, manutencoesPrevistas: true, comunicadosRecentes: true },
+}
+
+function cleanSlug(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 function normalizePortalConfig(config = {}) {
@@ -37,6 +46,7 @@ function normalizePortalConfig(config = {}) {
       ativo: portal.ativo !== false,
       permitirLink: portal.permitirLink !== false,
       permitirQrCode: portal.permitirQrCode !== false,
+      portalSlug: cleanSlug(portal.portalSlug || ''),
       bannerIds: Array.isArray(portal.bannerIds) ? portal.bannerIds : [],
       bannerMeta: portal.bannerMeta && typeof portal.bannerMeta === 'object' ? portal.bannerMeta : {},
       comunicadoIds: Array.isArray(portal.comunicadoIds) ? portal.comunicadoIds : [],
@@ -67,7 +77,11 @@ async function findCondominioByPortalToken(token) {
   const byJson = await prisma.condominio.findFirst({ where: { portalConfig: { path: ['portalMorador', 'token'], equals: cleanToken } }, include: includeSafe }).catch(() => null)
   if (byJson) return byJson
   const condominios = await prisma.condominio.findMany({ include: includeSafe })
-  return condominios.find(item => normalizePortalConfig(item.portalConfig).portalMorador.token === cleanToken) || null
+  const slug = cleanSlug(cleanToken)
+  return condominios.find(item => {
+    const portal = normalizePortalConfig(item.portalConfig).portalMorador
+    return portal.token === cleanToken || (portal.portalSlug && portal.portalSlug === slug)
+  }) || null
 }
 
 function apiOrigin(req) { return `${req.protocol}://${req.get('host')}` }
