@@ -6,6 +6,20 @@
     return String(value).replaceAll(OLD,OFFICIAL);
   }
 
+  function extractPortalLink(){
+    const candidates=[];
+    document.querySelectorAll('input,textarea,a[href]').forEach(el=>{
+      candidates.push(el.value||'',el.placeholder||'',el.href||'');
+    });
+    candidates.push(document.body.innerText||'');
+    for(const value of candidates){
+      const match=String(value).match(/https:\/\/(?:ta-na-mao-wine\.vercel\.app|tanamao\.tonocondominio\.com\.br)(?:\/[^\s"'<>]*)?/i);
+      if(match) return officialize(match[0].replace(/[),.;]+$/,''));
+    }
+    const token=new URLSearchParams(location.search).get('portal');
+    return token?`${OFFICIAL}/?portal=${encodeURIComponent(token)}`:'';
+  }
+
   function replaceText(root=document){
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
     const nodes=[];
@@ -24,11 +38,16 @@
     });
   }
 
-  function portalLinkNear(button){
-    const scope=button.closest('.card,[class*="card"],section,article,div')||document;
-    const text=scope.innerText||'';
-    const match=text.match(/https:\/\/(?:ta-na-mao-wine\.vercel\.app|tanamao\.tonocondominio\.com\.br)[^\s]*/i);
-    return officialize(match?.[0]||'');
+  function downloadQr(link){
+    const qr=`https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(link)}`;
+    const a=document.createElement('a');
+    a.href=qr;
+    a.download='qr-code-portal-morador.png';
+    a.target='_blank';
+    a.rel='noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   document.addEventListener('click',async event=>{
@@ -36,22 +55,26 @@
     if(!button) return;
     const label=(button.textContent||'').trim().toLowerCase();
     if(!['copiar link','visualizar portal','gerar qr code','baixar qr code'].some(x=>label.includes(x))) return;
-    const link=portalLinkNear(button);
+
+    const link=extractPortalLink();
     if(!link) return;
 
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
     if(label.includes('copiar link')){
-      event.preventDefault();
-      event.stopImmediatePropagation();
       try{await navigator.clipboard.writeText(link);alert('Link oficial copiado.');}
       catch{prompt('Copie o link oficial:',link);}
       return;
     }
 
     if(label.includes('visualizar portal')){
-      event.preventDefault();
-      event.stopImmediatePropagation();
       window.open(link,'_blank','noopener,noreferrer');
+      return;
     }
+
+    if(label.includes('qr code')) downloadQr(link);
   },true);
 
   const observer=new MutationObserver(()=>replaceText());
