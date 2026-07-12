@@ -22,11 +22,18 @@ function removeLegacyStaffModules() {
   })
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-)
+const params = new URLSearchParams(window.location.search)
+const isPublicExecution = Boolean(params.get('execucao'))
 
-removeLegacyStaffModules()
-setInterval(removeLegacyStaffModules, 300)
+if (!isPublicExecution) {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  )
+
+  removeLegacyStaffModules()
+  setInterval(removeLegacyStaffModules, 300)
+} else {
+  document.documentElement.dataset.publicExecution = 'true'
+}
