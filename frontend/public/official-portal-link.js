@@ -1,10 +1,21 @@
 (()=>{
   const OLD='https://ta-na-mao-wine.vercel.app';
+  const SITE='https://tonocondominio.com.br';
   const OFFICIAL='https://tanamao.tonocondominio.com.br';
 
   function officialize(value=''){
-    return String(value).replaceAll(OLD,OFFICIAL);
+    let next=String(value).replaceAll(OLD,OFFICIAL);
+    next=next.replace(/^https:\/\/tonocondominio\.com\.br(?=\/\?execucao=)/i,OFFICIAL);
+    return next;
   }
+
+  const nativeWriteText=navigator.clipboard?.writeText?.bind(navigator.clipboard);
+  if(nativeWriteText){
+    navigator.clipboard.writeText=value=>nativeWriteText(officialize(value));
+  }
+
+  const nativeOpen=window.open.bind(window);
+  window.open=(url,...args)=>nativeOpen(officialize(url),...args);
 
   function extractPortalLink(){
     const candidates=[];
@@ -25,16 +36,17 @@
     const nodes=[];
     while(walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(node=>{
-      if(node.nodeValue?.includes(OLD)) node.nodeValue=officialize(node.nodeValue);
+      if(node.nodeValue?.includes(OLD)||node.nodeValue?.includes(`${SITE}/?execucao=`)) node.nodeValue=officialize(node.nodeValue);
     });
 
     document.querySelectorAll('input,textarea').forEach(el=>{
-      if(String(el.value||'').includes(OLD)) el.value=officialize(el.value);
-      if(String(el.placeholder||'').includes(OLD)) el.placeholder=officialize(el.placeholder);
+      if(String(el.value||'').includes(OLD)||String(el.value||'').includes(`${SITE}/?execucao=`)) el.value=officialize(el.value);
+      if(String(el.placeholder||'').includes(OLD)||String(el.placeholder||'').includes(`${SITE}/?execucao=`)) el.placeholder=officialize(el.placeholder);
     });
 
     document.querySelectorAll('a[href]').forEach(a=>{
-      if(a.href.includes('ta-na-mao-wine.vercel.app')) a.href=officialize(a.href);
+      const next=officialize(a.href);
+      if(next!==a.href) a.href=next;
     });
   }
 
