@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url'
 import { authRouter }        from './routes/auth.js'
 import { manutencaoRouter }  from './routes/manutencao.js'
 import { manutencaoPlanejamentoRouter } from './routes/manutencaoPlanejamento.js'
+import { manutencaoExecucaoPublicaRouter } from './routes/manutencaoExecucaoPublica.js'
 import { chamadoRouter }     from './routes/chamado.js'
 import { documentoRouter }   from './routes/documento.js'
 import { vozRouter }         from './routes/voz.js'
@@ -104,8 +105,10 @@ app.use('/api', apiLimiter)
 
 app.use('/api/auth',          authRouter)
 app.use('/api/logo-data',     logoDataPublicRouter)
+app.use('/api/manutencoes',   manutencaoExecucaoPublicaRouter)
 app.use('/api/manutencoes',   manutencaoPlanejamentoRouter)
 app.use('/api/manutencoes',   manutencaoRouter)
+app.use('/api/maintenance',   manutencaoExecucaoPublicaRouter)
 app.use('/api/maintenance',   manutencaoPlanejamentoRouter)
 app.use('/api/maintenance',   manutencaoRouter)
 app.use('/api/chamados',      chamadoRouter)
