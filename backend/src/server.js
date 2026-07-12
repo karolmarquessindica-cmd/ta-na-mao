@@ -30,6 +30,8 @@ import { logoDataPublicRouter } from './routes/logoDataPublic.js'
 import { portalConfigSaveSafeRouter } from './routes/portalConfigSaveSafe.js'
 import { portalConfigCompatRouter } from './routes/portalConfigCompat.js'
 import { portalDocumentosSafeRouter } from './routes/portalDocumentosSafe.js'
+import { portalSlugSafeRouter } from './routes/portalSlugSafe.js'
+import { portalSlugResolveRouter } from './routes/portalSlugResolve.js'
 import { portalPublicSafeRouter } from './routes/portalPublicSafe.js'
 import { portalRouter }      from './routes/portal.js'
 import { arquivosPublicosRouter } from './routes/arquivosPublicos.js'
@@ -120,11 +122,15 @@ app.use('/api/financeiro',    financeiroRouter)
 app.use('/api/reservas',      reservaRouter)
 app.use('/api/relatorios',    relatorioRouter)
 app.use('/api/ia',            iaRouter)
+app.use('/api/condominios',   portalSlugSafeRouter)
 app.use('/api/condominios',   portalConfigSaveSafeRouter)
 app.use('/api/condominios',   portalConfigCompatRouter)
 app.use('/api/condominios',   portalDocumentosSafeRouter)
 app.use('/api/condominios',   condominioLogoSafeRouter)
 app.use('/api/condominios',   condominioRouter)
+app.use('/api/portal-public', portalSlugResolveRouter)
+app.use('/api/public/portal', portalSlugResolveRouter)
+app.use('/api/portal',        portalSlugResolveRouter)
 app.use('/api/portal-public', portalPublicSafeRouter)
 app.use('/api/public/portal', portalPublicSafeRouter)
 app.use('/api/portal',        portalPublicSafeRouter)
