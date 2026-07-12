@@ -6,7 +6,7 @@ import { authenticate, requireRole } from '../middleware/auth.js'
 export const portalConfigSaveSafeRouter = Router()
 portalConfigSaveSafeRouter.use(authenticate)
 
-const DEFAULT_FRONTEND_URL = 'https://www.tonocondominio.com.br'
+const DEFAULT_FRONTEND_URL = 'https://tanamao.tonocondominio.com.br'
 
 const safeDocumentoSelect = {
   id: true,
@@ -33,6 +33,7 @@ const defaultPortal = {
   permitirLink: true,
   permitirQrCode: true,
   token: null,
+  portalSlug: '',
   bannerIds: [],
   bannerMeta: {},
   comunicadoIds: [],
@@ -64,6 +65,16 @@ const defaultPortal = {
   },
 }
 
+function cleanSlug(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+}
+
 function normalizeConfig(config = {}) {
   const current = config || {}
   const portal = current.portalMorador || {}
@@ -77,6 +88,7 @@ function normalizeConfig(config = {}) {
       permitirLink: portal.permitirLink !== false,
       permitirQrCode: portal.permitirQrCode !== false,
       token: portal.token || crypto.randomBytes(24).toString('base64url'),
+      portalSlug: cleanSlug(portal.portalSlug || ''),
       bannerIds: Array.isArray(portal.bannerIds) ? portal.bannerIds : [],
       bannerMeta: portal.bannerMeta && typeof portal.bannerMeta === 'object' ? portal.bannerMeta : {},
       comunicadoIds: Array.isArray(portal.comunicadoIds) ? portal.comunicadoIds : [],
@@ -102,6 +114,7 @@ function mergeConfig(currentConfig, body = {}) {
     portalMorador: {
       ...current.portalMorador,
       ...incomingPortal,
+      portalSlug: incomingPortal.portalSlug !== undefined ? cleanSlug(incomingPortal.portalSlug) : current.portalMorador.portalSlug,
       bannerIds: Array.isArray(incomingPortal.bannerIds) ? incomingPortal.bannerIds : current.portalMorador.bannerIds,
       comunicadoIds: Array.isArray(incomingPortal.comunicadoIds) ? incomingPortal.comunicadoIds : current.portalMorador.comunicadoIds,
       documentoIds: Array.isArray(incomingPortal.documentoIds) ? incomingPortal.documentoIds : current.portalMorador.documentoIds,
@@ -122,10 +135,11 @@ function documentAccessType(value) {
 }
 
 function portalLink(config) {
-  const token = config?.portalMorador?.token
-  if (!token) return null
-  const base = process.env.FRONTEND_URL || DEFAULT_FRONTEND_URL
-  return `${base.replace(/\/$/, '')}/?portal=${token}`
+  const portal = config?.portalMorador || {}
+  const base = (process.env.PORTAL_PUBLIC_URL || DEFAULT_FRONTEND_URL).replace(/\/$/, '')
+  if (portal.portalSlug) return `${base}/${portal.portalSlug}`
+  if (!portal.token) return null
+  return `${base}/?portal=${portal.token}`
 }
 
 function response(condominio) {
@@ -171,6 +185,7 @@ function response(condominio) {
     config,
     logoUrl: condominio.logo || null,
     link,
+    portalSlug: portal.portalSlug || '',
     qrCodeUrl: link ? `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(link)}` : null,
     resumo: {
       ativo: Boolean(portal.ativo),
@@ -199,12 +214,21 @@ async function findAccessibleCondominio(req, id, include = undefined) {
   })
 }
 
+async function slugAlreadyUsed(slug, exceptId) {
+  if (!slug) return false
+  const condominios = await prisma.condominio.findMany({ select: { id: true, portalConfig: true } })
+  return condominios.some(item => item.id !== exceptId && cleanSlug(item?.portalConfig?.portalMorador?.portalSlug || '') === slug)
+}
+
 portalConfigSaveSafeRouter.put('/:id/portal-config', requireRole('ADMIN', 'SINDICO'), async (req, res, next) => {
   try {
     const condominio = await findAccessibleCondominio(req, req.params.id)
     if (!condominio) return res.status(404).json({ error: 'Condominio nao encontrado para este usuario', code: 'CONDOMINIO_NOT_FOUND' })
 
     const nextConfig = mergeConfig(condominio.portalConfig, req.body)
+    const slug = nextConfig.portalMorador.portalSlug
+    if (slug && slug.length < 3) return res.status(400).json({ error: 'O link personalizado deve ter pelo menos 3 caracteres.', code: 'INVALID_PORTAL_SLUG' })
+    if (await slugAlreadyUsed(slug, condominio.id)) return res.status(409).json({ error: 'Este link personalizado ja esta sendo usado.', code: 'PORTAL_SLUG_IN_USE' })
 
     const updated = await prisma.condominio.update({
       where: { id: condominio.id },
