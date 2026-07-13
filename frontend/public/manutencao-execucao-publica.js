@@ -17,8 +17,14 @@
   };
 
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const money=value=>value==null?'—':Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const dateBR=value=>value?new Date(value).toLocaleDateString('pt-BR'):'—';
+
+  function executionToken(){
+    const byQuery=new URLSearchParams(location.search).get('execucao');
+    if(byQuery) return byQuery;
+    const match=location.pathname.match(/^\/execucao\/([^/?#]+)/i);
+    return match?decodeURIComponent(match[1]):'';
+  }
 
   async function providerPage(token){
     document.body.innerHTML='<main id="exec-root" style="min-height:100vh;background:#f4f7f2;padding:20px;font-family:Arial,sans-serif"><div style="max-width:760px;margin:auto">Carregando ordem de serviço...</div></main>';
@@ -34,25 +40,11 @@
       </div>
       <form id="exec-form" style="background:white;padding:22px;border-radius:0 0 22px 22px;box-shadow:0 14px 40px rgba(0,0,0,.08)">
         <p style="color:#667085">${esc(item.descricao||'Preencha os dados do serviço executado.')}</p>
-        ${section('Responsável pelo serviço',`
-          ${field('Nome do prestador','prestadorNome','text',true)}
-          ${field('Empresa','prestadorEmpresa')}
-          ${field('Telefone','prestadorTelefone','tel')}
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${field('Hora de início','horaInicio','time')}${field('Hora de término','horaTermino','time')}</div>`)}
-        ${section('Antes da execução',`
-          ${textarea('Problemas encontrados','problemasEncontrados','Descreva o que foi encontrado antes do serviço.')}
-          ${file('Fotos antes','fotosAntes',true,true)}`)}
-        ${section('Serviço executado',`
-          ${textarea('Descrição do que foi feito','descricaoServico','Informe detalhadamente o serviço realizado.',true)}
-          ${textarea('Materiais utilizados','materiaisUtilizados','Ex.: registro, conexão, cola PVC...')}
-          ${file('Fotos durante o serviço','fotosDurante',true)}`)}
-        ${section('Depois da execução',`
-          ${file('Fotos depois','fotosDepois',true,true)}
-          ${textarea('Observações finais','observacoesFinais','Testes realizados, orientações e resultado final.')}`)}
-        ${section('Custos e documentos',`
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${field('Mão de obra (R$)','custoMaoObra','number')}${field('Materiais (R$)','custoMateriais','number')}${field('Outros custos (R$)','custoOutros','number')}${field('Valor total (R$)','valorTotal','number')}</div>
-          ${file('Nota fiscal','notaFiscal',false)}
-          ${file('Recibo','recibo',false)}`)}
+        ${section('Responsável pelo serviço',`${field('Nome do prestador','prestadorNome','text',true)}${field('Empresa','prestadorEmpresa')}${field('Telefone','prestadorTelefone','tel')}<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${field('Hora de início','horaInicio','time')}${field('Hora de término','horaTermino','time')}</div>`)}
+        ${section('Antes da execução',`${textarea('Problemas encontrados','problemasEncontrados','Descreva o que foi encontrado antes do serviço.')}${file('Fotos antes','fotosAntes',true,true)}`)}
+        ${section('Serviço executado',`${textarea('Descrição do que foi feito','descricaoServico','Informe detalhadamente o serviço realizado.',true)}${textarea('Materiais utilizados','materiaisUtilizados','Ex.: registro, conexão, cola PVC...')}${file('Fotos durante o serviço','fotosDurante',true)}`)}
+        ${section('Depois da execução',`${file('Fotos depois','fotosDepois',true,true)}${textarea('Observações finais','observacoesFinais','Testes realizados, orientações e resultado final.')}`)}
+        ${section('Custos e documentos',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">${field('Mão de obra (R$)','custoMaoObra','number')}${field('Materiais (R$)','custoMateriais','number')}${field('Outros custos (R$)','custoOutros','number')}${field('Valor total (R$)','valorTotal','number')}</div>${file('Nota fiscal','notaFiscal',false)}${file('Recibo','recibo',false)}`)}
         <label style="display:flex;gap:10px;align-items:center;margin:18px 0"><input type="checkbox" name="visivelMorador" checked> Permitir que o morador visualize este relatório</label>
         <button style="width:100%;background:#08783f;color:white;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:800">Finalizar serviço</button>
         <div id="exec-msg" style="margin-top:12px;text-align:center"></div>
@@ -82,18 +74,7 @@
     const gallery=(title,images=[])=>images.length?`<h3>${title}</h3><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">${images.map(src=>`<img src="${esc(src)}" style="width:100%;height:150px;object-fit:cover;border-radius:12px">`).join('')}</div>`:'';
     const overlay=document.createElement('div');
     overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;padding:16px;overflow:auto';
-    overlay.innerHTML=`<div style="max-width:620px;margin:20px auto;background:white;border-radius:22px;padding:22px;font-family:Arial,sans-serif">
-      <button data-close style="float:right;border:0;background:#eef3ee;border-radius:50%;width:38px;height:38px;font-size:20px">×</button>
-      <div style="color:#08783f;font-size:13px;font-weight:800">RELATÓRIO DE MANUTENÇÃO</div>
-      <h2>${esc(report.titulo)}</h2><p>${esc(report.local||'')} • ${dateBR(report.dataConclusao||e.dataExecucao)}</p>
-      ${e.prestadorNome||e.prestadorEmpresa?`<h3>Prestador</h3><p>${esc(e.prestadorNome||'')} ${e.prestadorEmpresa?'— '+esc(e.prestadorEmpresa):''}</p>`:''}
-      ${e.descricaoServico?`<h3>Serviço realizado</h3><p>${esc(e.descricaoServico)}</p>`:''}
-      ${e.materiaisUtilizados?`<h3>Materiais utilizados</h3><p style="white-space:pre-wrap">${esc(e.materiaisUtilizados)}</p>`:''}
-      ${e.observacoesFinais?`<h3>Observações finais</h3><p>${esc(e.observacoesFinais)}</p>`:''}
-      ${gallery('Antes',e.fotosAntes)}${gallery('Durante',e.fotosDurante)}${gallery('Depois',e.fotosDepois)}
-      ${e.notaFiscal?`<p><a href="${esc(e.notaFiscal)}" target="_blank" rel="noopener">📄 Ver nota fiscal</a></p>`:''}
-      ${e.recibo?`<p><a href="${esc(e.recibo)}" target="_blank" rel="noopener">📎 Ver recibo</a></p>`:''}
-    </div>`;
+    overlay.innerHTML=`<div style="max-width:620px;margin:20px auto;background:white;border-radius:22px;padding:22px;font-family:Arial,sans-serif"><button data-close style="float:right;border:0;background:#eef3ee;border-radius:50%;width:38px;height:38px;font-size:20px">×</button><div style="color:#08783f;font-size:13px;font-weight:800">RELATÓRIO DE MANUTENÇÃO</div><h2>${esc(report.titulo)}</h2><p>${esc(report.local||'')} • ${dateBR(report.dataConclusao||e.dataExecucao)}</p>${e.prestadorNome||e.prestadorEmpresa?`<h3>Prestador</h3><p>${esc(e.prestadorNome||'')} ${e.prestadorEmpresa?'— '+esc(e.prestadorEmpresa):''}</p>`:''}${e.descricaoServico?`<h3>Serviço realizado</h3><p>${esc(e.descricaoServico)}</p>`:''}${e.materiaisUtilizados?`<h3>Materiais utilizados</h3><p style="white-space:pre-wrap">${esc(e.materiaisUtilizados)}</p>`:''}${e.observacoesFinais?`<h3>Observações finais</h3><p>${esc(e.observacoesFinais)}</p>`:''}${gallery('Antes',e.fotosAntes)}${gallery('Durante',e.fotosDurante)}${gallery('Depois',e.fotosDepois)}${e.notaFiscal?`<p><a href="${esc(e.notaFiscal)}" target="_blank" rel="noopener">📄 Ver nota fiscal</a></p>`:''}${e.recibo?`<p><a href="${esc(e.recibo)}" target="_blank" rel="noopener">📎 Ver recibo</a></p>`:''}</div>`;
     overlay.onclick=event=>{if(event.target===overlay||event.target.closest('[data-close]'))overlay.remove()};
     document.body.appendChild(overlay);
   }
@@ -114,8 +95,10 @@
     }catch(error){alert(error.message)}
   }
 
-  const params=new URLSearchParams(location.search);
-  const execution=params.get('execucao');
-  if(execution){document.addEventListener('DOMContentLoaded',()=>providerPage(execution));}
-  else document.addEventListener('click',residentClick,true);
+  const execution=executionToken();
+  if(execution){
+    document.documentElement.dataset.publicExecution='true';
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>providerPage(execution));
+    else providerPage(execution);
+  } else document.addEventListener('click',residentClick,true);
 })();
