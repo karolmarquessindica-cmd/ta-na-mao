@@ -23,7 +23,7 @@ function removeLegacyStaffModules() {
 }
 
 const params = new URLSearchParams(window.location.search)
-const isPublicExecution = Boolean(params.get('execucao'))
+const isPublicExecution = Boolean(params.get('execucao')) || /^\/execucao\/[^/]+/i.test(window.location.pathname)
 
 if (!isPublicExecution) {
   ReactDOM.createRoot(document.getElementById('root')).render(
