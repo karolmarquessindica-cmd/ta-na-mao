@@ -1,29 +1,49 @@
 (()=>{
   const OLD='https://ta-na-mao-wine.vercel.app';
-  const SITE='https://tonocondominio.com.br';
   const OFFICIAL='https://tanamao.tonocondominio.com.br';
 
+  function executionTokenFrom(value=''){
+    const raw=String(value||'');
+    const query=raw.match(/[?&]execucao=([^&#\s"'<>]+)/i);
+    if(query) return decodeURIComponent(query[1]);
+    const path=raw.match(/\/execucao\/([^/?#\s"'<>]+)/i);
+    return path?decodeURIComponent(path[1]):'';
+  }
+
   function officialize(value=''){
-    let next=String(value).replaceAll(OLD,OFFICIAL);
-    next=next.replace(/^https:\/\/tonocondominio\.com\.br(?=\/\?execucao=)/i,OFFICIAL);
-    return next;
+    const raw=String(value||'');
+    const token=executionTokenFrom(raw);
+    if(token) return `${OFFICIAL}/execucao/${encodeURIComponent(token)}`;
+    return raw.replaceAll(OLD,OFFICIAL)
+      .replace(/^https:\/\/(?:www\.)?tonocondominio\.com\.br/i,OFFICIAL);
   }
 
   const nativeWriteText=navigator.clipboard?.writeText?.bind(navigator.clipboard);
-  if(nativeWriteText){
-    navigator.clipboard.writeText=value=>nativeWriteText(officialize(value));
-  }
+  if(nativeWriteText) navigator.clipboard.writeText=value=>nativeWriteText(officialize(value));
 
   const nativeOpen=window.open.bind(window);
   window.open=(url,...args)=>nativeOpen(officialize(url),...args);
 
-  function extractPortalLink(){
-    const candidates=[];
-    document.querySelectorAll('input,textarea,a[href]').forEach(el=>{
-      candidates.push(el.value||'',el.placeholder||'',el.href||'');
+  function candidatesNear(button){
+    const row=button.closest('tr,[role="row"],article,.card,[class*="card"],section')||button.parentElement?.parentElement||document;
+    const values=[];
+    row.querySelectorAll?.('input,textarea,a[href],[data-link],[data-url]')?.forEach(el=>{
+      values.push(el.value||'',el.href||'',el.dataset?.link||'',el.dataset?.url||'');
     });
-    candidates.push(document.body.innerText||'');
-    for(const value of candidates){
+    values.push(row.innerText||'',document.body.innerText||'');
+    return values;
+  }
+
+  function executionLinkNear(button){
+    for(const value of candidatesNear(button)){
+      const token=executionTokenFrom(value);
+      if(token) return `${OFFICIAL}/execucao/${encodeURIComponent(token)}`;
+    }
+    return '';
+  }
+
+  function portalLinkNear(button){
+    for(const value of candidatesNear(button)){
       const match=String(value).match(/https:\/\/(?:ta-na-mao-wine\.vercel\.app|tanamao\.tonocondominio\.com\.br)(?:\/[^\s"'<>]*)?/i);
       if(match) return officialize(match[0].replace(/[),.;]+$/,''));
     }
@@ -36,12 +56,15 @@
     const nodes=[];
     while(walker.nextNode()) nodes.push(walker.currentNode);
     nodes.forEach(node=>{
-      if(node.nodeValue?.includes(OLD)||node.nodeValue?.includes(`${SITE}/?execucao=`)) node.nodeValue=officialize(node.nodeValue);
+      const next=officialize(node.nodeValue||'');
+      if(next!==node.nodeValue) node.nodeValue=next;
     });
 
     document.querySelectorAll('input,textarea').forEach(el=>{
-      if(String(el.value||'').includes(OLD)||String(el.value||'').includes(`${SITE}/?execucao=`)) el.value=officialize(el.value);
-      if(String(el.placeholder||'').includes(OLD)||String(el.placeholder||'').includes(`${SITE}/?execucao=`)) el.placeholder=officialize(el.placeholder);
+      const value=officialize(el.value||'');
+      if(value!==el.value) el.value=value;
+      const placeholder=officialize(el.placeholder||'');
+      if(placeholder!==el.placeholder) el.placeholder=placeholder;
     });
 
     document.querySelectorAll('a[href]').forEach(a=>{
@@ -53,40 +76,30 @@
   function downloadQr(link){
     const qr=`https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(link)}`;
     const a=document.createElement('a');
-    a.href=qr;
-    a.download='qr-code-portal-morador.png';
-    a.target='_blank';
-    a.rel='noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    a.href=qr;a.download='qr-code.png';a.target='_blank';a.rel='noopener noreferrer';
+    document.body.appendChild(a);a.click();a.remove();
   }
 
   document.addEventListener('click',async event=>{
     const button=event.target.closest('button,a');
     if(!button) return;
     const label=(button.textContent||'').trim().toLowerCase();
-    if(!['copiar link','visualizar portal','gerar qr code','baixar qr code'].some(x=>label.includes(x))) return;
+    const isExecution=['enviar para execução','enviar para execucao','copiar link','qr code','abrir'].some(x=>label.includes(x)) && Boolean(button.closest('tr,[role="row"],article,[class*="manut"],.card'));
+    const isPortal=['visualizar portal','gerar qr code','baixar qr code'].some(x=>label.includes(x));
+    if(!isExecution&&!isPortal) return;
 
-    const link=extractPortalLink();
+    const link=isExecution?executionLinkNear(button):portalLinkNear(button);
     if(!link) return;
 
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
+    event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
 
-    if(label.includes('copiar link')){
-      try{await navigator.clipboard.writeText(link);alert('Link oficial copiado.');}
-      catch{prompt('Copie o link oficial:',link);}
+    if(label.includes('copiar')){
+      try{await navigator.clipboard.writeText(link);alert('Link copiado.');}
+      catch{prompt('Copie o link:',link);}
       return;
     }
-
-    if(label.includes('visualizar portal')){
-      window.open(link,'_blank','noopener,noreferrer');
-      return;
-    }
-
-    if(label.includes('qr code')) downloadQr(link);
+    if(label.includes('qr code')){downloadQr(link);return;}
+    window.open(link,'_blank','noopener,noreferrer');
   },true);
 
   const observer=new MutationObserver(()=>replaceText());
