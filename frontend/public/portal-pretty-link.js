@@ -1,9 +1,10 @@
 (()=>{
   const params=new URLSearchParams(location.search);
-  if(params.has('portal')) return;
+  if(params.has('portal')||params.has('execucao')) return;
 
-  const slug=location.pathname.replace(/^\/+|\/+$/g,'').split('/')[0];
-  const reserved=new Set(['','login','admin','api','assets','brand','favicon.svg','definir-senha.html']);
+  const pathParts=location.pathname.replace(/^\/+|\/+$/g,'').split('/').filter(Boolean);
+  const slug=pathParts[0]||'';
+  const reserved=new Set(['','login','admin','api','assets','brand','favicon.svg','definir-senha.html','execucao']);
   if(!slug||reserved.has(slug.toLowerCase())||slug.includes('.')) return;
 
   window.__TNM_PRETTY_PORTAL__={slug,path:location.pathname};
