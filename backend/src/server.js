@@ -33,6 +33,7 @@ import { portalConfigCompatRouter } from './routes/portalConfigCompat.js'
 import { portalDocumentosSafeRouter } from './routes/portalDocumentosSafe.js'
 import { portalSlugSafeRouter } from './routes/portalSlugSafe.js'
 import { portalSlugResolveRouter } from './routes/portalSlugResolve.js'
+import { portalTicketConfirmSafeRouter } from './routes/portalTicketConfirmSafe.js'
 import { portalPublicSafeRouter } from './routes/portalPublicSafe.js'
 import { portalRouter }      from './routes/portal.js'
 import { arquivosPublicosRouter } from './routes/arquivosPublicos.js'
@@ -134,6 +135,9 @@ app.use('/api/condominios',   condominioRouter)
 app.use('/api/portal-public', portalSlugResolveRouter)
 app.use('/api/public/portal', portalSlugResolveRouter)
 app.use('/api/portal',        portalSlugResolveRouter)
+app.use('/api/portal-public', portalTicketConfirmSafeRouter)
+app.use('/api/public/portal', portalTicketConfirmSafeRouter)
+app.use('/api/portal',        portalTicketConfirmSafeRouter)
 app.use('/api/portal-public', portalPublicSafeRouter)
 app.use('/api/public/portal', portalPublicSafeRouter)
 app.use('/api/portal',        portalPublicSafeRouter)
@@ -142,7 +146,7 @@ app.use('/api/arquivos',      arquivosPublicosRouter)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/jobs',          agendadorRouter)
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.2', ts: new Date().toISOString() }))
+app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.3', ts: new Date().toISOString() }))
 app.use(errorHandler)
 
 app.listen(PORT, async () => {
