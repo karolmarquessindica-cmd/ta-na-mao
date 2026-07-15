@@ -67,7 +67,7 @@ manutencaoExecucaoPublicaRouter.get('/execucao/:token', async (req, res, next) =
   } catch (e) { next(e) }
 })
 
-manutencaoExecucaoPublica.post('/execucao/:token', uploadLimiter, multerUpload.fields([
+manutencaoExecucaoPublicaRouter.post('/execucao/:token', uploadLimiter, multerUpload.fields([
   { name: 'fotosAntes', maxCount: 8 },
   { name: 'fotosDepois', maxCount: 8 },
   { name: 'fotosDurante', maxCount: 8 },
