@@ -8,6 +8,16 @@ import { multerUpload, uploadFile } from '../lib/storage.js'
 export const portalTicketConfirmSafeRouter = Router()
 
 const CONFIRMATION = 'Obrigada por nos ajudar a cuidar do seu patrimônio.'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function cleanSlug(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
 
 function normalizePortalConfig(config = {}) {
   const portal = config?.portalMorador || {}
@@ -17,20 +27,33 @@ function normalizePortalConfig(config = {}) {
       ...portal,
       ativo: portal.ativo !== false,
       permitirLink: portal.permitirLink !== false,
+      portalSlug: cleanSlug(portal.portalSlug || ''),
       funcionalidades: portal.funcionalidades || {},
     },
   }
 }
 
-async function findCondominioByPortalToken(token) {
-  const byJson = await prisma.condominio.findFirst({
-    where: { portalConfig: { path: ['portalMorador', 'token'], equals: token } },
+async function findCondominioByPortalIdentifier(identifier) {
+  const value = String(identifier || '').trim()
+  if (!value) return null
+
+  if (UUID_RE.test(value)) {
+    const byId = await prisma.condominio.findUnique({ where: { id: value } }).catch(() => null)
+    if (byId) return byId
+  }
+
+  const byToken = await prisma.condominio.findFirst({
+    where: { portalConfig: { path: ['portalMorador', 'token'], equals: value } },
   }).catch(() => null)
 
-  if (byJson) return byJson
+  if (byToken) return byToken
 
+  const slug = cleanSlug(value)
   const condominios = await prisma.condominio.findMany()
-  return condominios.find(item => normalizePortalConfig(item.portalConfig).portalMorador.token === token) || null
+  return condominios.find(item => {
+    const portal = normalizePortalConfig(item.portalConfig).portalMorador
+    return portal.token === value || portal.portalSlug === slug
+  }) || null
 }
 
 async function portalAnonymousUser(condominioId) {
@@ -42,7 +65,7 @@ async function portalAnonymousUser(condominioId) {
     data: {
       nome: 'Portal do Morador',
       email,
-      ['sen' + 'ha']: hash,
+      senha: hash,
       role: 'MORADOR',
       ativo: true,
       condominioId,
@@ -50,9 +73,9 @@ async function portalAnonymousUser(condominioId) {
   })
 }
 
-portalTicketConfirmSafeRouter.post('/:token/chamados', uploadLimiter, multerUpload.array('fotos', 5), async (req, res, next) => {
+portalTicketConfirmSafeRouter.post('/:identifier/chamados', uploadLimiter, multerUpload.array('fotos', 5), async (req, res, next) => {
   try {
-    const condominio = await findCondominioByPortalToken(req.params.token)
+    const condominio = await findCondominioByPortalIdentifier(req.params.identifier)
     if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
 
     const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
