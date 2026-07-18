@@ -19,6 +19,15 @@ function cleanSlug(value = '') {
     .replace(/^-+|-+$/g, '')
 }
 
+function canonicalPortalName(value = '') {
+  return cleanSlug(value)
+    .replace(/^condominio-/, '')
+    .replace(/-iv$/, '-4')
+    .replace(/-iii$/, '-3')
+    .replace(/-ii$/, '-2')
+    .replace(/-i$/, '-1')
+}
+
 function normalizePortalConfig(config = {}) {
   const portal = config?.portalMorador || {}
   return {
@@ -48,21 +57,15 @@ async function findCondominioByPortalIdentifier(identifier) {
 
   if (byToken) return byToken
 
-  const slug = cleanSlug(value)
-  const slugSemPrefixo = slug.replace(/^condominio-/, '')
+  const wanted = canonicalPortalName(value)
   const condominios = await prisma.condominio.findMany()
 
   return condominios.find(item => {
     const portal = normalizePortalConfig(item.portalConfig).portalMorador
-    const nomeSlug = cleanSlug(item.nome || '')
-    const portalSlug = cleanSlug(portal.portalSlug || '')
+    const nome = canonicalPortalName(item.nome || '')
+    const slug = canonicalPortalName(portal.portalSlug || '')
 
-    return portal.token === value
-      || portalSlug === slug
-      || portalSlug === slugSemPrefixo
-      || nomeSlug === slug
-      || nomeSlug === slugSemPrefixo
-      || `condominio-${nomeSlug}` === slug
+    return portal.token === value || nome === wanted || slug === wanted
   }) || null
 }
 
