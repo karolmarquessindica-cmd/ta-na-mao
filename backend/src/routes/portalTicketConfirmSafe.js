@@ -49,10 +49,20 @@ async function findCondominioByPortalIdentifier(identifier) {
   if (byToken) return byToken
 
   const slug = cleanSlug(value)
+  const slugSemPrefixo = slug.replace(/^condominio-/, '')
   const condominios = await prisma.condominio.findMany()
+
   return condominios.find(item => {
     const portal = normalizePortalConfig(item.portalConfig).portalMorador
-    return portal.token === value || portal.portalSlug === slug
+    const nomeSlug = cleanSlug(item.nome || '')
+    const portalSlug = cleanSlug(portal.portalSlug || '')
+
+    return portal.token === value
+      || portalSlug === slug
+      || portalSlug === slugSemPrefixo
+      || nomeSlug === slug
+      || nomeSlug === slugSemPrefixo
+      || `condominio-${nomeSlug}` === slug
   }) || null
 }
 
