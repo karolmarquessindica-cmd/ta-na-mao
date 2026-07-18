@@ -86,7 +86,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions))
 app.options('*', cors(corsOptions))
-
 app.use(helmet({ crossOriginResourcePolicy: false }))
 app.use(express.json({ limit: '25mb' }))
 app.use(express.urlencoded({ extended: true, limit: '25mb' }))
@@ -132,21 +131,26 @@ app.use('/api/condominios',   portalConfigCompatRouter)
 app.use('/api/condominios',   portalDocumentosSafeRouter)
 app.use('/api/condominios',   condominioLogoSafeRouter)
 app.use('/api/condominios',   condominioRouter)
-app.use('/api/portal-public', portalSlugResolveRouter)
-app.use('/api/public/portal', portalSlugResolveRouter)
-app.use('/api/portal',        portalSlugResolveRouter)
+
+// Chamados públicos devem ser avaliados antes de qualquer middleware genérico de portal.
 app.use('/api/portal-public', portalTicketConfirmSafeRouter)
 app.use('/api/public/portal', portalTicketConfirmSafeRouter)
 app.use('/api/portal',        portalTicketConfirmSafeRouter)
+
+// Demais rotas públicas do portal.
+app.use('/api/portal-public', portalSlugResolveRouter)
+app.use('/api/public/portal', portalSlugResolveRouter)
+app.use('/api/portal',        portalSlugResolveRouter)
 app.use('/api/portal-public', portalPublicSafeRouter)
 app.use('/api/public/portal', portalPublicSafeRouter)
 app.use('/api/portal',        portalPublicSafeRouter)
 app.use('/api/portal',        portalRouter)
+
 app.use('/api/arquivos',      arquivosPublicosRouter)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/jobs',          agendadorRouter)
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.3', ts: new Date().toISOString() }))
+app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '2.0.5', portalTickets: 'direct-first', ts: new Date().toISOString() }))
 app.use(errorHandler)
 
 app.listen(PORT, async () => {
