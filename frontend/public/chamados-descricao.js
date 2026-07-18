@@ -2,6 +2,7 @@
   if(new URLSearchParams(location.search).has('portal')) return;
 
   const API='https://ta-na-mao-9bii.onrender.com/api';
+  const API_ORIGIN=API.replace(/\/api\/?$/,'');
   const auth=()=>{const t=localStorage.getItem('tnm_token');return t?{Authorization:'Bearer '+t}:{}};
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -50,8 +51,54 @@
     return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
   }
 
+  function resolveFileUrl(value){
+    const raw=String(value||'').trim();
+    if(!raw) return '';
+    if(/^https?:\/\//i.test(raw)||/^data:/i.test(raw)||/^blob:/i.test(raw)) return raw;
+    if(raw.startsWith('/uploads/')) return API_ORIGIN+raw;
+    if(raw.startsWith('uploads/')) return API_ORIGIN+'/'+raw;
+    if(raw.startsWith('/api/arquivos/')) return API_ORIGIN+raw;
+    if(raw.startsWith('api/arquivos/')) return API_ORIGIN+'/'+raw;
+    return `${API}/arquivos/${raw.replace(/^\/+/, '')}`;
+  }
+
   function anexos(item){
-    return [item?.fotos,item?.anexos,item?.imagens,item?.arquivos].flat().filter(Boolean).map((a,i)=>typeof a==='string'?{url:a,nome:`Anexo ${i+1}`}:{url:a.url||a.fileUrl||a.path,nome:a.nome||a.fileName||`Anexo ${i+1}`}).filter(a=>a.url);
+    return [item?.fotos,item?.anexos,item?.imagens,item?.arquivos]
+      .flat()
+      .filter(Boolean)
+      .map((a,i)=>{
+        const original=typeof a==='string'?a:(a.url||a.fileUrl||a.path||a.key||'');
+        return {
+          url:resolveFileUrl(original),
+          nome:typeof a==='string'?`Foto ${i+1}`:(a.nome||a.fileName||a.originalname||`Foto ${i+1}`)
+        };
+      })
+      .filter(a=>a.url);
+  }
+
+  async function downloadFile(url,name,button){
+    const old=button.textContent;
+    button.disabled=true;
+    button.textContent='Baixando...';
+    try{
+      const response=await fetch(url,{headers:auth(),redirect:'follow'});
+      if(!response.ok) throw new Error('Não foi possível baixar a foto.');
+      const blob=await response.blob();
+      const objectUrl=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=objectUrl;
+      a.download=name||'foto-do-chamado';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(objectUrl),3000);
+      button.textContent='Baixado ✓';
+    }catch(error){
+      window.open(url,'_blank','noopener,noreferrer');
+      button.textContent='Abrir foto';
+    }finally{
+      setTimeout(()=>{button.disabled=false;button.textContent=old},1400);
+    }
   }
 
   function ensureCss(){
@@ -75,8 +122,13 @@
       .tnm-wa,.tnm-save{width:100%;display:flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:12px 14px;font-weight:800;text-decoration:none;cursor:pointer;background:#16a34a;color:#fff;font-size:14px}
       .tnm-wa.disabled{background:#b8c4bc;pointer-events:none}
       .tnm-status{width:100%;margin:10px 0;padding:11px;border:1px solid #dde7de;border-radius:11px;background:#fff}
-      .tnm-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:9px}
-      .tnm-files a{border:1px solid #dde7de;border-radius:11px;padding:10px;text-decoration:none;color:#003b24;font-size:12px}
+      .tnm-files{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+      .tnm-file{border:1px solid #dde7de;border-radius:13px;padding:10px;background:#f8fbf7;display:grid;gap:8px}
+      .tnm-file-preview{display:flex;align-items:center;justify-content:center;min-height:105px;border-radius:10px;background:#eef6ef;overflow:hidden;text-decoration:none;color:#003b24;font-size:13px;font-weight:800}
+      .tnm-file-preview img{width:100%;height:130px;object-fit:cover;display:block}
+      .tnm-file-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+      .tnm-file-actions a,.tnm-file-actions button{border:0;border-radius:9px;padding:9px 8px;font-size:12px;font-weight:800;text-align:center;text-decoration:none;cursor:pointer}
+      .tnm-file-open{background:#003b24;color:#fff}.tnm-file-download{background:#dcfce7;color:#166534}
       @media(max-width:760px){#tnm-chamado-modal{padding:8px;align-items:flex-end}.tnm-modal-box{max-height:95vh;border-radius:20px 20px 0 0}.tnm-modal-body{grid-template-columns:1fr}.tnm-meta{grid-template-columns:1fr 1fr}}
     `;
     document.head.appendChild(s);
@@ -101,7 +153,7 @@
         <div class="tnm-modal-body">
           <div>
             <div class="tnm-card"><h3>Descrição completa</h3><div class="tnm-description">${esc(data.descricao)}</div></div>
-            ${files.length?`<div class="tnm-card"><h3>Fotos e anexos</h3><div class="tnm-files">${files.map(f=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">📎 ${esc(f.nome)}</a>`).join('')}</div></div>`:''}
+            ${files.length?`<div class="tnm-card"><h3>Fotos anexadas pelo morador</h3><div class="tnm-files">${files.map((f,i)=>`<div class="tnm-file"><a class="tnm-file-preview" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer"><img src="${esc(f.url)}" alt="${esc(f.nome)}" onerror="this.remove();this.parentElement.textContent='📷 ${esc(f.nome)}'"></a><div style="font-size:12px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.nome)}</div><div class="tnm-file-actions"><a class="tnm-file-open" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">Ver foto</a><button class="tnm-file-download" type="button" data-file-index="${i}">Baixar</button></div></div>`).join('')}</div></div>`:'<div class="tnm-card"><h3>Fotos anexadas pelo morador</h3><p style="font-size:13px;color:#68766d">Nenhuma foto foi localizada neste chamado.</p></div>'}
           </div>
           <div>
             <div class="tnm-card"><h3>Dados do morador</h3><div class="tnm-meta"><div><b>Nome</b>${esc(data.nome)}</div><div><b>WhatsApp</b>${esc(data.whatsapp||'—')}</div><div><b>Bloco</b>${esc(data.bloco||'—')}</div><div><b>Apartamento</b>${esc(data.apartamento||'—')}</div><div style="grid-column:1/-1"><b>Local informado</b>${esc(data.local||'—')}</div></div></div>
@@ -114,6 +166,10 @@
     status.value=item.status||'ABERTO';
     modal.querySelector('.tnm-modal-close').addEventListener('click',closeModal);
     modal.addEventListener('click',e=>{if(e.target===modal) closeModal()});
+    modal.querySelectorAll('.tnm-file-download').forEach(button=>button.addEventListener('click',()=>{
+      const file=files[Number(button.dataset.fileIndex)];
+      if(file) downloadFile(file.url,file.nome,button);
+    }));
     modal.querySelector('.tnm-save').addEventListener('click',async e=>{
       const b=e.currentTarget;b.disabled=true;b.textContent='Salvando...';
       try{
