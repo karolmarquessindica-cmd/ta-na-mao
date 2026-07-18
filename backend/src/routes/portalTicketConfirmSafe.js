@@ -9,6 +9,8 @@ export const portalTicketConfirmSafeRouter = Router()
 
 const CONFIRMATION = 'Obrigada por nos ajudar a cuidar do seu patrimônio.'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const IGNORED_WORDS = new Set(['condominio', 'residencial', 'residence', 'rf', 'edificio', 'empreendimento', 'do', 'da', 'de'])
+const ROMAN = { i: '1', ii: '2', iii: '3', iv: '4', v: '5', vi: '6', vii: '7', viii: '8', ix: '9', x: '10' }
 
 function cleanSlug(value = '') {
   return String(value)
@@ -19,13 +21,23 @@ function cleanSlug(value = '') {
     .replace(/^-+|-+$/g, '')
 }
 
-function canonicalPortalName(value = '') {
+function canonicalTokens(value = '') {
   return cleanSlug(value)
-    .replace(/^condominio-/, '')
-    .replace(/-iv$/, '-4')
-    .replace(/-iii$/, '-3')
-    .replace(/-ii$/, '-2')
-    .replace(/-i$/, '-1')
+    .split('-')
+    .filter(Boolean)
+    .map(token => ROMAN[token] || token)
+    .filter(token => !IGNORED_WORDS.has(token))
+}
+
+function samePortalName(a, b) {
+  const left = canonicalTokens(a)
+  const right = canonicalTokens(b)
+  if (!left.length || !right.length) return false
+  const leftSet = new Set(left)
+  const rightSet = new Set(right)
+  const leftInsideRight = left.every(token => rightSet.has(token))
+  const rightInsideLeft = right.every(token => leftSet.has(token))
+  return leftInsideRight || rightInsideLeft
 }
 
 function normalizePortalConfig(config = {}) {
@@ -57,15 +69,12 @@ async function findCondominioByPortalIdentifier(identifier) {
 
   if (byToken) return byToken
 
-  const wanted = canonicalPortalName(value)
   const condominios = await prisma.condominio.findMany()
-
   return condominios.find(item => {
     const portal = normalizePortalConfig(item.portalConfig).portalMorador
-    const nome = canonicalPortalName(item.nome || '')
-    const slug = canonicalPortalName(portal.portalSlug || '')
-
-    return portal.token === value || nome === wanted || slug === wanted
+    return portal.token === value
+      || samePortalName(item.nome, value)
+      || samePortalName(portal.portalSlug, value)
   }) || null
 }
 
@@ -89,7 +98,14 @@ async function portalAnonymousUser(condominioId) {
 portalTicketConfirmSafeRouter.post('/:identifier/chamados', uploadLimiter, multerUpload.array('fotos', 5), async (req, res, next) => {
   try {
     const condominio = await findCondominioByPortalIdentifier(req.params.identifier)
-    if (!condominio) return res.status(404).json({ error: 'Portal nao encontrado', code: 'PORTAL_NOT_FOUND' })
+    if (!condominio) {
+      return res.status(404).json({
+        error: 'Portal nao encontrado',
+        code: 'PORTAL_NOT_FOUND',
+        identifier: req.params.identifier,
+        routeVersion: 'chamados-2.0.4',
+      })
+    }
 
     const portal = normalizePortalConfig(condominio.portalConfig).portalMorador
     if (portal.ativo === false || portal.permitirLink === false || portal.funcionalidades?.abrirChamado === false) {
@@ -133,6 +149,7 @@ portalTicketConfirmSafeRouter.post('/:identifier/chamados', uploadLimiter, multe
       createdAt: chamado.createdAt,
       mensagem: CONFIRMATION,
       resposta: CONFIRMATION,
+      routeVersion: 'chamados-2.0.4',
     })
   } catch (error) {
     next(error)
