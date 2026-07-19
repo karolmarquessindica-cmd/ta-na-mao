@@ -1,7 +1,7 @@
 (()=>{
   'use strict';
 
-  const API='https://ta-na-mao-9bii.onrender.com/api/logo-data/google/calendar';
+  let API='';
   let status=null;
   let statusLoading=false;
   let pendingEvent=null;
@@ -10,9 +10,35 @@
   const token=()=>localStorage.getItem('tnm_token');
   const authHeaders=()=>token()?{Authorization:`Bearer ${token}`}:{ };
 
+  function captureApi(input){
+    try{
+      const raw=typeof input==='string'?input:input?.url||'';
+      if(!raw) return;
+      const url=new URL(raw,location.href);
+      if(!url.pathname.startsWith('/api/')) return;
+      if(url.pathname.includes('/api/logo-data/google/calendar')) return;
+      API=`${url.origin}/api/logo-data/google/calendar`;
+      localStorage.setItem('tnm_api_origin',url.origin);
+    }catch{}
+  }
+
+  function resolveApi(){
+    if(API) return API;
+    const saved=localStorage.getItem('tnm_api_origin');
+    if(saved){API=`${saved.replace(/\/$/,'')}/api/logo-data/google/calendar`;return API}
+    const entry=performance.getEntriesByType('resource').map(item=>item.name).find(name=>{
+      try{const url=new URL(name);return url.pathname.startsWith('/api/')&&!url.pathname.includes('/api/logo-data/google/calendar')}catch{return false}
+    });
+    if(entry){captureApi(entry);return API}
+    return '';
+  }
+
   async function request(path,options={}){
-    const response=await fetch(API+path,{...options,headers:{...authHeaders(),...(options.headers||{})}});
+    const base=resolveApi();
+    if(!base) throw new Error('Aguardando conexão com o servidor do aplicativo');
+    const response=await fetch(base+path,{...options,headers:{...authHeaders(),...(options.headers||{})}});
     const body=await response.json().catch(()=>({}));
+    if(response.status===401) throw new Error('Sessão inválida. Saia e entre novamente no sistema.');
     if(!response.ok) throw new Error(body.error||`Erro ${response.status}`);
     return body;
   }
@@ -48,139 +74,72 @@
     document.head.appendChild(style);
   }
 
-  function maintenancePage(){
-    return [...document.querySelectorAll('h1')].find(el=>normalize(el.textContent)==='manutencoes');
-  }
+  function maintenancePage(){return [...document.querySelectorAll('h1')].find(el=>normalize(el.textContent)==='manutencoes')}
+  function escapeHtml(value){const div=document.createElement('div');div.textContent=String(value||'');return div.innerHTML}
 
   function renderCard(){
-    const heading=maintenancePage();
-    if(!heading) return;
-    const page=heading.closest('.page');
-    if(!page) return;
+    const heading=maintenancePage();if(!heading)return;
+    const page=heading.closest('.page');if(!page)return;
     let card=page.querySelector('[data-tnm-gcal-card]');
-    if(!card){
-      card=document.createElement('section');
-      card.dataset.tnmGcalCard='1';
-      card.className='tnm-gcal-card';
-      const header=heading.parentElement?.parentElement;
-      if(header&&header.parentElement===page) header.insertAdjacentElement('afterend',card); else page.prepend(card);
-    }
-    const connected=Boolean(status?.connected);
-    const configured=status?.configured!==false;
-    const hasError=Boolean(status?.error);
-    card.innerHTML=`
-      <div class="tnm-gcal-info"><div class="tnm-gcal-icon">📅</div><div>
-        <div class="tnm-gcal-title">Google Agenda para manutenções</div>
-        <div class="tnm-gcal-sub">As manutenções marcadas serão adicionadas à sua agenda com lembretes de 1 dia e 2 horas.${connected&&status.email?`<br>Conta: ${escapeHtml(status.email)}`:''}</div>
-        <span class="tnm-gcal-state ${hasError?'err':connected?'on':''}">${hasError?'Erro de conexão':connected?'Conectado':'Não conectado'}</span>
-      </div></div>
-      <div class="tnm-gcal-actions">${connected?'<button type="button" class="tnm-gcal-btn tnm-gcal-disconnect">Desconectar</button>':`<button type="button" class="tnm-gcal-btn tnm-gcal-connect" ${configured?'':'disabled'}>${configured?'Conectar Google Agenda':'Configuração pendente'}</button>`}</div>`;
+    if(!card){card=document.createElement('section');card.dataset.tnmGcalCard='1';card.className='tnm-gcal-card';const header=heading.parentElement?.parentElement;if(header&&header.parentElement===page)header.insertAdjacentElement('afterend',card);else page.prepend(card)}
+    const connected=Boolean(status?.connected);const configured=status?.configured!==false;const hasError=Boolean(status?.error);
+    card.innerHTML=`<div class="tnm-gcal-info"><div class="tnm-gcal-icon">📅</div><div><div class="tnm-gcal-title">Google Agenda para manutenções</div><div class="tnm-gcal-sub">As manutenções marcadas serão adicionadas à sua agenda com lembretes de 1 dia e 2 horas.${connected&&status.email?`<br>Conta: ${escapeHtml(status.email)}`:''}</div><span class="tnm-gcal-state ${hasError?'err':connected?'on':''}">${hasError?escapeHtml(status.error):connected?'Conectado':'Não conectado'}</span></div></div><div class="tnm-gcal-actions">${connected?'<button type="button" class="tnm-gcal-btn tnm-gcal-disconnect">Desconectar</button>':`<button type="button" class="tnm-gcal-btn tnm-gcal-connect" ${configured?'':'disabled'}>${configured?'Conectar Google Agenda':'Configuração pendente'}</button>`}</div>`;
     card.querySelector('.tnm-gcal-connect')?.addEventListener('click',connect);
     card.querySelector('.tnm-gcal-disconnect')?.addEventListener('click',disconnect);
   }
 
-  function escapeHtml(value){
-    const div=document.createElement('div'); div.textContent=String(value||''); return div.innerHTML;
-  }
-
   async function loadStatus(){
-    if(statusLoading||!token()) return;
+    if(statusLoading||!token()||!resolveApi())return;
     statusLoading=true;
     try{status=await request('/status')}catch(error){status={configured:true,connected:false,error:error.message}}
     finally{statusLoading=false;renderCard()}
   }
 
   async function connect(event){
-    const button=event.currentTarget;
-    button.disabled=true; button.textContent='Abrindo Google...';
-    try{const data=await request('/connect'); location.href=data.url}
-    catch(error){notify(error.message,'err');button.disabled=false;button.textContent='Conectar Google Agenda'}
+    const button=event.currentTarget;button.disabled=true;button.textContent='Abrindo Google...';
+    try{const data=await request('/connect');location.href=data.url}
+    catch(error){notify(error.message,'err');button.disabled=false;button.textContent='Conectar Google Agenda';status={configured:true,connected:false,error:error.message};renderCard()}
   }
 
   async function disconnect(event){
-    if(!confirm('Desconectar sua conta do Google Agenda?')) return;
-    const button=event.currentTarget; button.disabled=true;
+    if(!confirm('Desconectar sua conta do Google Agenda?'))return;
+    const button=event.currentTarget;button.disabled=true;
     try{await request('/disconnect',{method:'DELETE'});status={configured:true,connected:false};renderCard();notify('Google Agenda desconectado.')}
     catch(error){notify(error.message,'err');button.disabled=false}
   }
 
   function ensureCheckbox(){
-    if(!status?.connected) return;
-    const modals=[...document.querySelectorAll('.modal')];
-    const modal=modals.find(item=>normalize(item.textContent).includes('nova manutencao'));
-    if(!modal||modal.querySelector('[data-tnm-gcal-check]')) return;
-    const actions=[...modal.querySelectorAll('button')].find(button=>normalize(button.textContent)==='salvar')?.parentElement;
-    if(!actions) return;
-    const label=document.createElement('label');
-    label.dataset.tnmGcalCheck='1';
-    label.className='tnm-gcal-check';
-    label.innerHTML='<input type="checkbox" checked data-tnm-gcal-checkbox><span>Adicionar ao Google Agenda<small>O evento será criado após salvar a manutenção.</small></span>';
-    actions.insertAdjacentElement('beforebegin',label);
+    if(!status?.connected)return;
+    const modal=[...document.querySelectorAll('.modal')].find(item=>normalize(item.textContent).includes('nova manutencao'));
+    if(!modal||modal.querySelector('[data-tnm-gcal-check]'))return;
+    const actions=[...modal.querySelectorAll('button')].find(button=>normalize(button.textContent)==='salvar')?.parentElement;if(!actions)return;
+    const label=document.createElement('label');label.dataset.tnmGcalCheck='1';label.className='tnm-gcal-check';label.innerHTML='<input type="checkbox" checked data-tnm-gcal-checkbox><span>Adicionar ao Google Agenda<small>O evento será criado após salvar a manutenção.</small></span>';actions.insertAdjacentElement('beforebegin',label);
   }
 
-  function fieldByLabel(modal,labelText){
-    const wanted=normalize(labelText);
-    const label=[...modal.querySelectorAll('label')].find(item=>normalize(item.textContent)===wanted);
-    return label?.parentElement?.querySelector('input,select,textarea')?.value||'';
-  }
-
+  function fieldByLabel(modal,labelText){const wanted=normalize(labelText);const label=[...modal.querySelectorAll('label')].find(item=>normalize(item.textContent)===wanted);return label?.parentElement?.querySelector('input,select,textarea')?.value||''}
   function preparePendingEvent(event){
-    const button=event.target.closest('button');
-    if(!button||normalize(button.textContent)!=='salvar') return;
-    const modal=button.closest('.modal');
-    if(!modal||!normalize(modal.textContent).includes('nova manutencao')) return;
-    const checkbox=modal.querySelector('[data-tnm-gcal-checkbox]');
-    if(!checkbox?.checked){pendingEvent=null;return}
+    const button=event.target.closest('button');if(!button||normalize(button.textContent)!=='salvar')return;
+    const modal=button.closest('.modal');if(!modal||!normalize(modal.textContent).includes('nova manutencao'))return;
+    const checkbox=modal.querySelector('[data-tnm-gcal-checkbox]');if(!checkbox?.checked){pendingEvent=null;return}
     const condoSelect=maintenancePage()?.closest('.page')?.querySelector('select');
-    pendingEvent={
-      titulo:fieldByLabel(modal,'Manutencao')||fieldByLabel(modal,'Título'),
-      local:fieldByLabel(modal,'Local'),
-      descricao:fieldByLabel(modal,'Descricao')||fieldByLabel(modal,'Descrição'),
-      responsavel:fieldByLabel(modal,'Responsavel')||fieldByLabel(modal,'Responsável'),
-      dataVencimento:fieldByLabel(modal,'Data prevista')||fieldByLabel(modal,'Vencimento'),
-      prioridade:fieldByLabel(modal,'Prioridade'),
-      condominio:condoSelect?.selectedOptions?.[0]?.textContent||'',
-    };
-    if(!pendingEvent.titulo||!pendingEvent.dataVencimento) pendingEvent=null;
+    pendingEvent={titulo:fieldByLabel(modal,'Manutencao')||fieldByLabel(modal,'Título'),local:fieldByLabel(modal,'Local'),descricao:fieldByLabel(modal,'Descricao')||fieldByLabel(modal,'Descrição'),responsavel:fieldByLabel(modal,'Responsavel')||fieldByLabel(modal,'Responsável'),dataVencimento:fieldByLabel(modal,'Data prevista')||fieldByLabel(modal,'Vencimento'),prioridade:fieldByLabel(modal,'Prioridade'),condominio:condoSelect?.selectedOptions?.[0]?.textContent||''};
+    if(!pendingEvent.titulo||!pendingEvent.dataVencimento)pendingEvent=null;
   }
 
   const originalFetch=window.fetch.bind(window);
   window.fetch=async function(input,init={}){
+    captureApi(input);
     const response=await originalFetch(input,init);
     try{
-      const url=typeof input==='string'?input:input?.url||'';
-      const method=String(init?.method||input?.method||'GET').toUpperCase();
-      const isMaintenanceCreate=method==='POST'&&/\/api\/manutencoes(?:\?|$)/.test(url);
-      if(isMaintenanceCreate&&response.ok&&pendingEvent){
-        const payload=pendingEvent; pendingEvent=null;
-        request('/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-          .then(result=>notify(result.htmlLink?'Manutenção salva e adicionada ao Google Agenda.':'Manutenção adicionada ao Google Agenda.'))
-          .catch(error=>notify(`Manutenção salva, mas a agenda não foi atualizada: ${error.message}`,'err'));
-      } else if(isMaintenanceCreate&&!response.ok){pendingEvent=null}
+      const url=typeof input==='string'?input:input?.url||'';const method=String(init?.method||input?.method||'GET').toUpperCase();const isMaintenanceCreate=method==='POST'&&/\/api\/manutencoes(?:\?|$)/.test(url);
+      if(isMaintenanceCreate&&response.ok&&pendingEvent){const payload=pendingEvent;pendingEvent=null;request('/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(result=>notify(result.htmlLink?'Manutenção salva e adicionada ao Google Agenda.':'Manutenção adicionada ao Google Agenda.')).catch(error=>notify(`Manutenção salva, mas a agenda não foi atualizada: ${error.message}`,'err'))}else if(isMaintenanceCreate&&!response.ok){pendingEvent=null}
     }catch(error){console.error('[google-calendar-maintenance]',error)}
     return response;
   };
 
-  document.addEventListener('click',preparePendingEvent,true);
-  ensureCss();
-
-  const params=new URLSearchParams(location.search);
-  const oauthResult=params.get('googleCalendar');
-  if(oauthResult){
-    params.delete('googleCalendar');
-    history.replaceState({},'',location.pathname+(params.toString()?`?${params}`:'')+location.hash);
-    if(oauthResult==='connected') notify('Google Agenda conectado com sucesso.');
-    else if(oauthResult==='denied') notify('A conexão com o Google foi cancelada.','err');
-    else notify('Não foi possível conectar o Google Agenda.','err');
-  }
-
-  function tick(){
-    if(maintenancePage()){
-      if(!status&&!statusLoading) loadStatus();
-      renderCard();
-      ensureCheckbox();
-    }
-  }
-  tick();
-  setInterval(tick,1200);
+  document.addEventListener('click',preparePendingEvent,true);ensureCss();
+  const params=new URLSearchParams(location.search);const oauthResult=params.get('googleCalendar');
+  if(oauthResult){params.delete('googleCalendar');history.replaceState({},'',location.pathname+(params.toString()?`?${params}`:'')+location.hash);if(oauthResult==='connected')notify('Google Agenda conectado com sucesso.');else if(oauthResult==='denied')notify('A conexão com o Google foi cancelada.','err');else notify('Não foi possível conectar o Google Agenda.','err')}
+  function tick(){if(maintenancePage()){if(!status&&!statusLoading)loadStatus();renderCard();ensureCheckbox()}}
+  tick();setInterval(tick,1200);
 })();
