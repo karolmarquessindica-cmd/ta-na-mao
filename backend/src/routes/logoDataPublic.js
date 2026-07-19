@@ -27,8 +27,26 @@ function encrypt(value) {
   return [iv, tag, encrypted].map(part => part.toString('base64url')).join('.')
 }
 
+function decrypt(value) {
+  if (!value) return null
+  const [ivPart, tagPart, encryptedPart] = String(value).split('.')
+  if (!ivPart || !tagPart || !encryptedPart) throw new Error('Token do Google invalido')
+  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(), Buffer.from(ivPart, 'base64url'))
+  decipher.setAuthTag(Buffer.from(tagPart, 'base64url'))
+  return Buffer.concat([
+    decipher.update(Buffer.from(encryptedPart, 'base64url')),
+    decipher.final(),
+  ]).toString('utf8')
+}
+
 function integrationFrom(config = {}, userId) {
   return config?.integracoes?.googleCalendar?.[userId] || null
+}
+
+async function readGoogleIntegration(condominioId, userId) {
+  const condominio = await prisma.condominio.findUnique({ where: { id: condominioId }, select: { portalConfig: true } })
+  if (!condominio) throw new Error('Condominio nao encontrado')
+  return { condominio, integration: integrationFrom(condominio.portalConfig || {}, userId) }
 }
 
 async function saveGoogleIntegration(condominioId, userId, integration) {
@@ -46,10 +64,53 @@ async function saveGoogleIntegration(condominioId, userId, integration) {
   })
 }
 
+async function refreshGoogleAccessToken(condominioId, userId, integration) {
+  const refreshToken = decrypt(integration?.refreshToken)
+  if (!refreshToken) throw new Error('Reconecte sua conta do Google Agenda')
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  const tokens = await response.json().catch(() => ({}))
+  if (!response.ok || !tokens.access_token) throw new Error(tokens.error_description || 'Nao foi possivel renovar o acesso ao Google Agenda')
+
+  const updated = {
+    ...integration,
+    accessToken: encrypt(tokens.access_token),
+    expiryDate: Date.now() + Number(tokens.expires_in || 3600) * 1000,
+    scope: tokens.scope || integration.scope || null,
+    tokenType: tokens.token_type || integration.tokenType || 'Bearer',
+  }
+  await saveGoogleIntegration(condominioId, userId, updated)
+  return { integration: updated, accessToken: tokens.access_token }
+}
+
+async function getGoogleAccessToken(condominioId, userId) {
+  const { integration } = await readGoogleIntegration(condominioId, userId)
+  if (!integration) throw new Error('Google Agenda nao conectado')
+
+  if (integration.accessToken && Number(integration.expiryDate || 0) > Date.now() + 60_000) {
+    return { integration, accessToken: decrypt(integration.accessToken) }
+  }
+  return refreshGoogleAccessToken(condominioId, userId, integration)
+}
+
+function nextDate(dateString) {
+  const date = new Date(`${dateString}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + 1)
+  return date.toISOString().slice(0, 10)
+}
+
 logoDataPublicRouter.get('/google/calendar/status', authenticate, async (req, res, next) => {
   try {
-    const condominio = await prisma.condominio.findUnique({ where: { id: req.user.condominioId }, select: { portalConfig: true } })
-    const integration = integrationFrom(condominio?.portalConfig || {}, req.user.id)
+    const { integration } = await readGoogleIntegration(req.user.condominioId, req.user.id)
     res.json({
       configured: googleConfigured(),
       connected: Boolean(integration?.refreshToken || integration?.accessToken),
@@ -106,8 +167,7 @@ logoDataPublicRouter.get('/google/calendar/callback', async (req, res) => {
       email = profile.email || null
     }
 
-    const condominio = await prisma.condominio.findUnique({ where: { id: state.condominioId }, select: { portalConfig: true } })
-    const previous = integrationFrom(condominio?.portalConfig || {}, state.userId)
+    const { integration: previous } = await readGoogleIntegration(state.condominioId, state.userId)
     await saveGoogleIntegration(state.condominioId, state.userId, {
       accessToken: encrypt(tokens.access_token),
       refreshToken: encrypt(tokens.refresh_token) || previous?.refreshToken || null,
@@ -123,6 +183,41 @@ logoDataPublicRouter.get('/google/calendar/callback', async (req, res) => {
     console.error('[google-calendar-callback]', e.message)
     res.redirect(`${FRONTEND_URL}/?googleCalendar=error`)
   }
+})
+
+logoDataPublicRouter.post('/google/calendar/events', authenticate, async (req, res, next) => {
+  try {
+    const { titulo, descricao, local, responsavel, condominio, dataVencimento, prioridade } = req.body || {}
+    if (!titulo || !dataVencimento) return res.status(400).json({ error: 'Titulo e data da manutencao sao obrigatorios' })
+
+    const { integration, accessToken } = await getGoogleAccessToken(req.user.condominioId, req.user.id)
+    const calendarId = integration.calendarId || 'primary'
+    const details = [
+      condominio ? `Condominio: ${condominio}` : null,
+      local ? `Local: ${local}` : null,
+      responsavel ? `Responsavel: ${responsavel}` : null,
+      prioridade ? `Prioridade: ${prioridade}` : null,
+      descricao ? `\nObservacoes:\n${descricao}` : null,
+      '\nCriado pelo Ta na Mao.',
+    ].filter(Boolean).join('\n')
+
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        summary: `Manutencao - ${titulo}`,
+        description: details,
+        location: [condominio, local].filter(Boolean).join(' - '),
+        start: { date: String(dataVencimento).slice(0, 10) },
+        end: { date: nextDate(String(dataVencimento).slice(0, 10)) },
+        reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 1440 }, { method: 'popup', minutes: 120 }] },
+        extendedProperties: { private: { source: 'ta-na-mao', type: 'manutencao' } },
+      }),
+    })
+    const event = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(event.error?.message || 'Nao foi possivel criar o evento no Google Agenda')
+    res.status(201).json({ id: event.id, htmlLink: event.htmlLink, status: event.status })
+  } catch (e) { next(e) }
 })
 
 logoDataPublicRouter.delete('/google/calendar/disconnect', authenticate, async (req, res, next) => {
