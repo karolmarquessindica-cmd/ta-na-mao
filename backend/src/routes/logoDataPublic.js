@@ -1,29 +1,135 @@
 import { Router } from 'express'
+import crypto from 'crypto'
+import jwt from 'jsonwebtoken'
 import { prisma } from '../lib/prisma.js'
+import { authenticate } from '../middleware/auth.js'
 
 export const logoDataPublicRouter = Router()
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://tanamao.tonocondominio.com.br').replace(/\/$/, '')
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_CALENDAR_REDIRECT_URI || 'https://ta-na-mao-9bii.onrender.com/api/logo-data/google/calendar/callback'
+const JWT_SECRET = process.env.JWT_SECRET || 'tanamaao-secret-key-change-in-production'
+
+function googleConfigured() {
+  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && GOOGLE_REDIRECT_URI)
+}
+
+function encryptionKey() {
+  return crypto.createHash('sha256').update(process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || JWT_SECRET).digest()
+}
+
+function encrypt(value) {
+  if (!value) return null
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv)
+  const encrypted = Buffer.concat([cipher.update(String(value), 'utf8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+  return [iv, tag, encrypted].map(part => part.toString('base64url')).join('.')
+}
+
+function integrationFrom(config = {}, userId) {
+  return config?.integracoes?.googleCalendar?.[userId] || null
+}
+
+async function saveGoogleIntegration(condominioId, userId, integration) {
+  const condominio = await prisma.condominio.findUnique({ where: { id: condominioId }, select: { portalConfig: true } })
+  if (!condominio) throw new Error('Condominio nao encontrado')
+  const current = condominio.portalConfig && typeof condominio.portalConfig === 'object' ? condominio.portalConfig : {}
+  const integracoes = current.integracoes && typeof current.integracoes === 'object' ? current.integracoes : {}
+  const googleCalendar = integracoes.googleCalendar && typeof integracoes.googleCalendar === 'object' ? integracoes.googleCalendar : {}
+  const nextGoogle = { ...googleCalendar }
+  if (integration) nextGoogle[userId] = integration
+  else delete nextGoogle[userId]
+  await prisma.condominio.update({
+    where: { id: condominioId },
+    data: { portalConfig: { ...current, integracoes: { ...integracoes, googleCalendar: nextGoogle } } },
+  })
+}
+
+logoDataPublicRouter.get('/google/calendar/status', authenticate, async (req, res, next) => {
+  try {
+    const condominio = await prisma.condominio.findUnique({ where: { id: req.user.condominioId }, select: { portalConfig: true } })
+    const integration = integrationFrom(condominio?.portalConfig || {}, req.user.id)
+    res.json({
+      configured: googleConfigured(),
+      connected: Boolean(integration?.refreshToken || integration?.accessToken),
+      email: integration?.email || null,
+      connectedAt: integration?.connectedAt || null,
+      calendarId: integration?.calendarId || 'primary',
+    })
+  } catch (e) { next(e) }
+})
+
+logoDataPublicRouter.get('/google/calendar/connect', authenticate, async (req, res, next) => {
+  try {
+    if (!googleConfigured()) return res.status(503).json({ error: 'Google Agenda ainda nao foi configurado no servidor', code: 'GOOGLE_NOT_CONFIGURED' })
+    const state = jwt.sign({ userId: req.user.id, condominioId: req.user.condominioId, purpose: 'google-calendar' }, JWT_SECRET, { expiresIn: '10m' })
+    const params = new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      redirect_uri: GOOGLE_REDIRECT_URI,
+      response_type: 'code',
+      access_type: 'offline',
+      prompt: 'consent',
+      include_granted_scopes: 'true',
+      scope: 'openid email https://www.googleapis.com/auth/calendar.events',
+      state,
+    })
+    res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}` })
+  } catch (e) { next(e) }
+})
 
 logoDataPublicRouter.get('/google/calendar/callback', async (req, res) => {
-  const { code, error } = req.query
+  try {
+    if (req.query.error) return res.redirect(`${FRONTEND_URL}/?googleCalendar=denied`)
+    if (!req.query.code || !req.query.state) return res.redirect(`${FRONTEND_URL}/?googleCalendar=invalid`)
+    const state = jwt.verify(String(req.query.state), JWT_SECRET)
+    if (state.purpose !== 'google-calendar') throw new Error('Estado OAuth invalido')
 
-  if (error) {
-    return res.redirect(`${FRONTEND_URL}/?googleCalendar=erro&motivo=${encodeURIComponent(String(error))}`)
-  }
-
-  if (!code) {
-    return res.status(400).json({
-      error: 'Codigo de autorizacao do Google nao informado',
-      code: 'GOOGLE_OAUTH_CODE_MISSING',
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: String(req.query.code),
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        grant_type: 'authorization_code',
+      }),
     })
-  }
+    const tokens = await tokenResponse.json()
+    if (!tokenResponse.ok) throw new Error(tokens.error_description || tokens.error || 'Falha ao conectar Google Agenda')
 
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    return res.redirect(`${FRONTEND_URL}/?googleCalendar=aguardando-credenciais`)
-  }
+    let email = null
+    if (tokens.access_token) {
+      const profileResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: `Bearer ${tokens.access_token}` } })
+      const profile = await profileResponse.json().catch(() => ({}))
+      email = profile.email || null
+    }
 
-  return res.redirect(`${FRONTEND_URL}/?googleCalendar=callback-recebido`)
+    const condominio = await prisma.condominio.findUnique({ where: { id: state.condominioId }, select: { portalConfig: true } })
+    const previous = integrationFrom(condominio?.portalConfig || {}, state.userId)
+    await saveGoogleIntegration(state.condominioId, state.userId, {
+      accessToken: encrypt(tokens.access_token),
+      refreshToken: encrypt(tokens.refresh_token) || previous?.refreshToken || null,
+      expiryDate: tokens.expires_in ? Date.now() + Number(tokens.expires_in) * 1000 : null,
+      scope: tokens.scope || null,
+      tokenType: tokens.token_type || 'Bearer',
+      email,
+      calendarId: previous?.calendarId || 'primary',
+      connectedAt: new Date().toISOString(),
+    })
+    res.redirect(`${FRONTEND_URL}/?googleCalendar=connected`)
+  } catch (e) {
+    console.error('[google-calendar-callback]', e.message)
+    res.redirect(`${FRONTEND_URL}/?googleCalendar=error`)
+  }
+})
+
+logoDataPublicRouter.delete('/google/calendar/disconnect', authenticate, async (req, res, next) => {
+  try {
+    await saveGoogleIntegration(req.user.condominioId, req.user.id, null)
+    res.json({ connected: false })
+  } catch (e) { next(e) }
 })
 
 logoDataPublicRouter.get('/:id', async (req, res, next) => {
