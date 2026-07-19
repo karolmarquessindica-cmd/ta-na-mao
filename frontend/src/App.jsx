@@ -2996,8 +2996,6 @@ function ManutPageV2({ user, toast }) {
   const [show, setShow] = useState(false);
   const [links, setLinks] = useState({});
   const [openingReportId, setOpeningReportId] = useState("");
-  const [calendarStatus, setCalendarStatus] = useState(null);
-  const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarBusy, setCalendarBusy] = useState(false);
   const [form, setForm] = useState({ titulo:"Elevador", local:"Bloco A", descricao:"Revisao mensal", tipo:"PREVENTIVA", prioridade:"MEDIA", responsavel:"Empresa X", dataVencimento:"2026-04-27", custo:"" });
   const { copyNow, manualCopyModal } = useSafeCopy(toast);
@@ -3009,15 +3007,9 @@ function ManutPageV2({ user, toast }) {
 
   const path = query || `/manutencoes?condominioId=${encodeURIComponent(filters.condominioId || defaultCondo || "")}`;
   const { data, loading, reload } = useFetch(path, [path]);
+  const { data: calendarStatus, loading: calendarLoading, reload: reloadCalendarStatus } = useFetch("/logo-data/google/calendar/status");
   const manutencoes = asList(data);
   const selectedCondominioId = filters.condominioId || defaultCondo || "";
-
-  async function loadCalendarStatus() {
-    setCalendarLoading(true);
-    try { setCalendarStatus(await api.get("/logo-data/google/calendar/status")); }
-    catch(e){ setCalendarStatus({ connected:false, error:e.message }); }
-    finally { setCalendarLoading(false); }
-  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -3030,7 +3022,6 @@ function ManutPageV2({ user, toast }) {
       else if (result === "invalid") toast("Retorno do Google Agenda inválido. Tente conectar novamente.", "err");
       else toast("Não foi possível conectar o Google Agenda.", "err");
     }
-    loadCalendarStatus();
   }, []);
 
   async function connectGoogleCalendar() {
@@ -3051,7 +3042,7 @@ function ManutPageV2({ user, toast }) {
     try {
       await api.del("/logo-data/google/calendar/disconnect");
       toast("Google Agenda desconectado.", "ok");
-      await loadCalendarStatus();
+      await reloadCalendarStatus();
     } catch(e) { toast(e.message, "err"); }
     finally { setCalendarBusy(false); }
   }
