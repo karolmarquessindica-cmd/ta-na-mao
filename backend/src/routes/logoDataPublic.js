@@ -3,6 +3,29 @@ import { prisma } from '../lib/prisma.js'
 
 export const logoDataPublicRouter = Router()
 
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://tanamao.tonocondominio.com.br').replace(/\/$/, '')
+
+logoDataPublicRouter.get('/google/calendar/callback', async (req, res) => {
+  const { code, error } = req.query
+
+  if (error) {
+    return res.redirect(`${FRONTEND_URL}/?googleCalendar=erro&motivo=${encodeURIComponent(String(error))}`)
+  }
+
+  if (!code) {
+    return res.status(400).json({
+      error: 'Codigo de autorizacao do Google nao informado',
+      code: 'GOOGLE_OAUTH_CODE_MISSING',
+    })
+  }
+
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.redirect(`${FRONTEND_URL}/?googleCalendar=aguardando-credenciais`)
+  }
+
+  return res.redirect(`${FRONTEND_URL}/?googleCalendar=callback-recebido`)
+})
+
 logoDataPublicRouter.get('/:id', async (req, res, next) => {
   try {
     const condominio = await prisma.condominio.findUnique({ where: { id: req.params.id }, select: { portalConfig: true } })
