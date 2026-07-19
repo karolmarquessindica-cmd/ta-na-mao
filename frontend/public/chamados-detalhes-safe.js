@@ -12,9 +12,13 @@
   const list=value=>Array.isArray(value)?value:(Array.isArray(value?.data)?value.data:(Array.isArray(value?.items)?value.items:[]));
   const token=()=>localStorage.getItem('tnm_token');
   const api=async(path,options={})=>{
+    const authToken=token();
     const response=await fetch(API+path,{
       ...options,
-      headers:{...(token()?{Authorization:`Bearer ${token()}`}:{ }),(options.headers||{})}
+      headers:{
+        ...(authToken?{Authorization:`Bearer ${authToken}`} : {}),
+        ...(options.headers||{})
+      }
     });
     const body=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(body.error||`Erro ${response.status}`);
