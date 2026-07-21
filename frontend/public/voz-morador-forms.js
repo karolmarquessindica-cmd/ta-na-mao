@@ -8,14 +8,18 @@
     return /\/api\/(?:portal|portal-public|public\/portal)(?:\/|\?|$)/i.test(url||'');
   }
 
+  function isResidentPortal(){
+    return Boolean(portal||document.querySelector('.pnav')||/Portal do Morador/i.test(document.body?.innerText||''));
+  }
+
   window.fetch=async function(input,init){
     const url=typeof input==='string'?input:(input&&input.url)||'';
     const res=await oldFetch(input,init);
     try{
       const data=await res.clone().json();
-      if(location.search.includes('portal=')&&isPortalRequest(url)&&data?.condominio) portal=data;
+      if(isPortalRequest(url)&&data?.condominio) portal=data;
       const list=Array.isArray(data)?data:(Array.isArray(data?.data)?data.data:[]);
-      if(!location.search.includes('portal=')&&url.includes('condominios')&&list.length&&list[0]?.id&&list[0]?.nome) condos=list;
+      if(!isResidentPortal()&&url.includes('condominios')&&list.length&&list[0]?.id&&list[0]?.nome) condos=list;
     }catch{}
     return res;
   };
@@ -25,13 +29,15 @@
   const cacheKey=id=>'tnm_voz_forms_'+id;
 
   async function saveLink(condo,link){
-    localStorage.setItem(cacheKey(condo.id),link||'');
-    const r=await fetch(API+'/condominios/'+condo.id+'/portal-config',{
+    const r=await oldFetch(API+'/condominios/'+condo.id+'/portal-config',{
       method:'PUT',
       headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},
       body:JSON.stringify({portalMorador:{vozMoradorFormsUrl:link}})
     });
     if(!r.ok) throw new Error('Não foi possível salvar o link.');
+    localStorage.setItem(cacheKey(condo.id),link||'');
+    const saved=await r.json().catch(()=>null);
+    if(saved?.config) condo.portalConfig=saved.config;
   }
 
   function currentLink(condo){
@@ -41,7 +47,7 @@
   }
 
   function adminCard(){
-    if(location.search.includes('portal=')||document.querySelector('[data-voz-form-card]'))return;
+    if(isResidentPortal()||document.querySelector('[data-voz-form-card]'))return;
     if(!/Configurar Portal do Morador/i.test(document.body.innerText||''))return;
     const c=currentCondo();
     if(!c)return;
@@ -69,22 +75,17 @@
       portal?.config?.vozMoradorLink||'';
   }
 
-  function portalBind(){
-    if(!location.search.includes('portal='))return;
-    const buttons=[...document.querySelectorAll('button,a')].filter(b=>/Voz do Morador/i.test(b.textContent||''));
-    buttons.forEach(btn=>{
-      if(btn.dataset.vozForms==='1')return;
-      btn.dataset.vozForms='1';
-      btn.addEventListener('click',ev=>{
-        const link=portalLink();
-        if(!link)return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        ev.stopImmediatePropagation();
-        window.open(link,'_blank','noopener,noreferrer');
-      },true);
-    });
-  }
+  document.addEventListener('click',ev=>{
+    if(!isResidentPortal())return;
+    const target=ev.target?.closest?.('button,a');
+    if(!target||!/Voz do Morador/i.test(target.textContent||''))return;
+    const link=portalLink();
+    if(!link)return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    window.open(link,'_blank','noopener,noreferrer');
+  },true);
 
-  setInterval(()=>{adminCard();portalBind()},400);
+  setInterval(adminCard,500);
 })();
