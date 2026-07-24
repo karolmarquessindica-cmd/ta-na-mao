@@ -1,5 +1,7 @@
 // src/routes/chamado.js  (v2 — com WhatsApp e Notificações)
 import { Router } from 'express'
+import fs from 'fs'
+import path from 'path'
 import { prisma } from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { enviarWhatsApp } from './whatsapp.js'
@@ -9,6 +11,32 @@ import { buildCondominioWhere, buildDateRange, resolveCondominioScope } from '..
 
 export const chamadoRouter = Router()
 chamadoRouter.use(authenticate)
+
+function mimeFromPath(filePath) {
+  const ext = path.extname(filePath).toLowerCase()
+  return ({ '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' })[ext] || 'image/jpeg'
+}
+
+async function preserveLegacyPhotos(item) {
+  if (!item || !Array.isArray(item.fotos) || !item.fotos.some(value => String(value || '').startsWith('/uploads/'))) return item
+  let changed = false
+  const nextFotos = item.fotos.map(value => {
+    const raw = String(value || '')
+    if (!raw.startsWith('/uploads/')) return value
+    const localPath = path.resolve(process.cwd(), raw.replace(/^\/+/, ''))
+    if (!fs.existsSync(localPath)) return value
+    try {
+      const buffer = fs.readFileSync(localPath)
+      changed = true
+      return `data:${mimeFromPath(localPath)};base64,${buffer.toString('base64')}`
+    } catch {
+      return value
+    }
+  })
+  if (!changed) return item
+  await prisma.chamado.update({ where: { id: item.id }, data: { fotos: nextFotos } })
+  return { ...item, fotos: nextFotos }
+}
 
 chamadoRouter.get('/', async (req, res, next) => {
   try {
@@ -24,7 +52,7 @@ chamadoRouter.get('/', async (req, res, next) => {
     if (status && status !== 'all')       where.status    = status
     if (categoria && categoria !== 'all') where.categoria = categoria
 
-    const [data, total] = await Promise.all([
+    const [rawData, total] = await Promise.all([
       prisma.chamado.findMany({
         where,
         include: {
@@ -39,6 +67,7 @@ chamadoRouter.get('/', async (req, res, next) => {
       }),
       prisma.chamado.count({ where }),
     ])
+    const data = await Promise.all(rawData.map(preserveLegacyPhotos))
     res.json({
       ...paginatedResponse({ data, total, page, limit }),
       filters: {
@@ -58,7 +87,7 @@ chamadoRouter.get('/:id', async (req, res, next) => {
     const scope = await resolveCondominioScope(req.user, 'all')
     const where = { id: req.params.id, ...buildCondominioWhere(scope.condominioIds) }
     if (req.user.role === 'MORADOR') where.moradorId = req.user.id
-    const item = await prisma.chamado.findFirst({
+    const found = await prisma.chamado.findFirst({
       where,
       include: {
         morador:     { select: { id: true, nome: true, unidade: true, bloco: true, whatsapp: true } },
@@ -67,7 +96,8 @@ chamadoRouter.get('/:id', async (req, res, next) => {
         historico:   { orderBy: { createdAt: 'asc' } },
       }
     })
-    if (!item) return res.status(404).json({ error: 'Não encontrado', code: 'NOT_FOUND' })
+    if (!found) return res.status(404).json({ error: 'Não encontrado', code: 'NOT_FOUND' })
+    const item = await preserveLegacyPhotos(found)
     res.json(item)
   } catch (e) { next(e) }
 })
@@ -81,7 +111,6 @@ chamadoRouter.post('/', async (req, res, next) => {
     })
     await prisma.historicoChamado.create({ data: { chamadoId: item.id, acao: 'Chamado aberto pelo morador' } })
 
-    // Notificar admins
     const admins = await prisma.user.findMany({ where: { condominioId: req.user.condominioId, role: { in: ['ADMIN', 'SINDICO'] }, ativo: true } })
     const config = await prisma.configWhatsApp.findUnique({ where: { condominioId: req.user.condominioId } })
     for (const admin of admins) {
@@ -99,9 +128,7 @@ chamadoRouter.patch('/:id', async (req, res, next) => {
     const scope = await resolveCondominioScope(req.user, 'all')
     const where = { id: req.params.id, ...buildCondominioWhere(scope.condominioIds) }
     if (req.user.role === 'MORADOR') where.moradorId = req.user.id
-    const existing = await prisma.chamado.findFirst({
-      where,
-    })
+    const existing = await prisma.chamado.findFirst({ where })
     if (!existing) return res.status(404).json({ error: 'Não encontrado', code: 'NOT_FOUND' })
 
     const { status, resposta, responsavelId, nota } = req.body
