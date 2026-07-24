@@ -25,6 +25,7 @@ import { financeiroRouter }  from './routes/financeiro.js'
 import { reservaRouter }     from './routes/reserva.js'
 import { relatorioRouter }   from './routes/relatorio.js'
 import { iaRouter }          from './routes/ia.js'
+import { gestaoAcaoRouter }  from './routes/gestaoAcao.js'
 import { condominioRouter }  from './routes/condominio.js'
 import { condominioLogoSafeRouter } from './routes/condominioLogoSafe.js'
 import { logoDataPublicRouter } from './routes/logoDataPublic.js'
@@ -125,6 +126,7 @@ app.use('/api/financeiro',    financeiroRouter)
 app.use('/api/reservas',      reservaRouter)
 app.use('/api/relatorios',    relatorioRouter)
 app.use('/api/ia',            iaRouter)
+app.use('/api/gestao-acao',   gestaoAcaoRouter)
 app.use('/api/condominios',   portalSlugSafeRouter)
 app.use('/api/condominios',   portalConfigSaveSafeRouter)
 app.use('/api/condominios',   portalConfigCompatRouter)
