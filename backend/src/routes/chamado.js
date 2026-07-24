@@ -1,4 +1,4 @@
-// src/routes/chamado.js  (v2 — com WhatsApp e Notificações)
+// src/routes/chamado.js — chamados, anexos e preservação de fotos
 import { Router } from 'express'
 import fs from 'fs'
 import path from 'path'
@@ -17,26 +17,57 @@ function mimeFromPath(filePath) {
   return ({ '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' })[ext] || 'image/jpeg'
 }
 
+function localUploadPath(value) {
+  const raw = String(value || '')
+  if (!raw.startsWith('/uploads/') && !raw.startsWith('uploads/')) return null
+  return path.resolve(process.cwd(), raw.replace(/^\/+/, ''))
+}
+
 async function preserveLegacyPhotos(item) {
-  if (!item || !Array.isArray(item.fotos) || !item.fotos.some(value => String(value || '').startsWith('/uploads/'))) return item
+  if (!item || !Array.isArray(item.fotos)) return { item, preserved: 0, missing: 0 }
   let changed = false
+  let preserved = 0
+  let missing = 0
   const nextFotos = item.fotos.map(value => {
-    const raw = String(value || '')
-    if (!raw.startsWith('/uploads/')) return value
-    const localPath = path.resolve(process.cwd(), raw.replace(/^\/+/, ''))
-    if (!fs.existsSync(localPath)) return value
+    const localPath = localUploadPath(value)
+    if (!localPath) return value
+    if (!fs.existsSync(localPath)) {
+      missing += 1
+      return value
+    }
     try {
       const buffer = fs.readFileSync(localPath)
       changed = true
+      preserved += 1
       return `data:${mimeFromPath(localPath)};base64,${buffer.toString('base64')}`
     } catch {
+      missing += 1
       return value
     }
   })
-  if (!changed) return item
-  await prisma.chamado.update({ where: { id: item.id }, data: { fotos: nextFotos } })
-  return { ...item, fotos: nextFotos }
+  if (changed) await prisma.chamado.update({ where: { id: item.id }, data: { fotos: nextFotos } })
+  return { item: changed ? { ...item, fotos: nextFotos } : item, preserved, missing }
 }
+
+chamadoRouter.post('/preservar-fotos', async (req, res, next) => {
+  try {
+    const scope = await resolveCondominioScope(req.user, 'all')
+    const where = { ...buildCondominioWhere(scope.condominioIds) }
+    if (req.user.role === 'MORADOR') where.moradorId = req.user.id
+    const chamados = await prisma.chamado.findMany({ where, select: { id: true, fotos: true } })
+    let preserved = 0
+    let missing = 0
+    let affectedTickets = 0
+    for (const chamado of chamados) {
+      if (!Array.isArray(chamado.fotos) || !chamado.fotos.some(value => localUploadPath(value))) continue
+      const result = await preserveLegacyPhotos(chamado)
+      preserved += result.preserved
+      missing += result.missing
+      if (result.preserved) affectedTickets += 1
+    }
+    res.json({ checkedTickets: chamados.length, affectedTickets, preserved, missing })
+  } catch (e) { next(e) }
+})
 
 chamadoRouter.get('/', async (req, res, next) => {
   try {
@@ -49,17 +80,17 @@ chamadoRouter.get('/', async (req, res, next) => {
       ...buildDateRange('createdAt', req.query.de || req.query.dataInicial, req.query.ate || req.query.dataFinal),
     }
     if (req.user.role === 'MORADOR') where.moradorId = req.user.id
-    if (status && status !== 'all')       where.status    = status
+    if (status && status !== 'all') where.status = status
     if (categoria && categoria !== 'all') where.categoria = categoria
 
     const [rawData, total] = await Promise.all([
       prisma.chamado.findMany({
         where,
         include: {
-          morador:     { select: { id: true, nome: true, unidade: true, bloco: true } },
+          morador: { select: { id: true, nome: true, unidade: true, bloco: true } },
           responsavel: { select: { id: true, nome: true } },
-          condominio:  { select: { id: true, nome: true } },
-          historico:   { orderBy: { createdAt: 'asc' } },
+          condominio: { select: { id: true, nome: true } },
+          historico: { orderBy: { createdAt: 'asc' } },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -67,9 +98,14 @@ chamadoRouter.get('/', async (req, res, next) => {
       }),
       prisma.chamado.count({ where }),
     ])
-    const data = await Promise.all(rawData.map(preserveLegacyPhotos))
+    const migrated = await Promise.all(rawData.map(preserveLegacyPhotos))
+    const data = migrated.map(result => result.item)
     res.json({
       ...paginatedResponse({ data, total, page, limit }),
+      photoAudit: {
+        preserved: migrated.reduce((sum, result) => sum + result.preserved, 0),
+        missing: migrated.reduce((sum, result) => sum + result.missing, 0),
+      },
       filters: {
         condominios: scope.condominios,
         selectedCondominioId: scope.selectedCondominioId,
@@ -90,15 +126,15 @@ chamadoRouter.get('/:id', async (req, res, next) => {
     const found = await prisma.chamado.findFirst({
       where,
       include: {
-        morador:     { select: { id: true, nome: true, unidade: true, bloco: true, whatsapp: true } },
+        morador: { select: { id: true, nome: true, unidade: true, bloco: true, whatsapp: true } },
         responsavel: { select: { id: true, nome: true } },
-        condominio:  { select: { id: true, nome: true } },
-        historico:   { orderBy: { createdAt: 'asc' } },
+        condominio: { select: { id: true, nome: true } },
+        historico: { orderBy: { createdAt: 'asc' } },
       }
     })
     if (!found) return res.status(404).json({ error: 'Não encontrado', code: 'NOT_FOUND' })
-    const item = await preserveLegacyPhotos(found)
-    res.json(item)
+    const result = await preserveLegacyPhotos(found)
+    res.json(result.item)
   } catch (e) { next(e) }
 })
 
@@ -133,8 +169,8 @@ chamadoRouter.patch('/:id', async (req, res, next) => {
 
     const { status, resposta, responsavelId, nota } = req.body
     const data = {}
-    if (status)        data.status        = status
-    if (resposta)      data.resposta      = resposta
+    if (status) data.status = status
+    if (resposta) data.resposta = resposta
     if (responsavelId) data.responsavelId = responsavelId
     if (status === 'CONCLUIDO') data.dataConclusao = new Date()
 
@@ -144,22 +180,16 @@ chamadoRouter.patch('/:id', async (req, res, next) => {
     })
 
     const acoes = { EM_ANALISE: 'Em análise', CONCLUIDO: 'Concluído' }
-    if (acoes[status]) {
-      await prisma.historicoChamado.create({ data: { chamadoId: item.id, acao: `Chamado ${acoes[status]}`, nota: nota || resposta || null } })
-    }
+    if (acoes[status]) await prisma.historicoChamado.create({ data: { chamadoId: item.id, acao: `Chamado ${acoes[status]}`, nota: nota || resposta || null } })
 
     if (status && item.morador) {
       const config = await prisma.configWhatsApp.findUnique({ where: { condominioId: item.condominioId } })
       if (status === 'CONCLUIDO') {
         await criarNotificacao({ condominioId: item.condominioId, userId: item.morador.id, tipo: 'CHAMADO_CONCLUIDO', titulo: 'Chamado concluído', mensagem: item.titulo, link: '/meus-chamados' })
-        if (item.morador.whatsapp && config?.notifChamadoConcluido) {
-          await enviarWhatsApp({ condominioId: item.condominioId, numero: item.morador.whatsapp, mensagem: `✅ *Chamado Concluído*\n\n*"${item.titulo}"* foi resolvido!\n${resposta ? `\n*Resposta:* ${resposta}` : ''}` })
-        }
+        if (item.morador.whatsapp && config?.notifChamadoConcluido) await enviarWhatsApp({ condominioId: item.condominioId, numero: item.morador.whatsapp, mensagem: `✅ *Chamado Concluído*\n\n*"${item.titulo}"* foi resolvido!\n${resposta ? `\n*Resposta:* ${resposta}` : ''}` })
       } else if (status === 'EM_ANALISE') {
         await criarNotificacao({ condominioId: item.condominioId, userId: item.morador.id, tipo: 'CHAMADO_ATUALIZADO', titulo: 'Chamado em análise', mensagem: item.titulo, link: '/meus-chamados' })
-        if (item.morador.whatsapp && config?.notifChamadoAtualizado) {
-          await enviarWhatsApp({ condominioId: item.condominioId, numero: item.morador.whatsapp, mensagem: `🔍 *Chamado em Análise*\n\nSeu chamado *"${item.titulo}"* está sendo analisado.` })
-        }
+        if (item.morador.whatsapp && config?.notifChamadoAtualizado) await enviarWhatsApp({ condominioId: item.condominioId, numero: item.morador.whatsapp, mensagem: `🔍 *Chamado em Análise*\n\nSeu chamado *"${item.titulo}"* está sendo analisado.` })
       }
     }
     res.json(item)
