@@ -13,6 +13,7 @@
   const loading=new Set();
   const syncing=new Set();
   const loaded=new Set();
+  const recovered=new Set();
 
   function headers(json=false){
     const h={};
@@ -57,6 +58,15 @@
     return Array.isArray(body?.items)?body.items:[];
   }
 
+  async function runRecovery(id){
+    if(recovered.has(id)) return [];
+    recovered.add(id);
+    const r=await fetch(BASE+'/api/gestao-acao-recovery',{method:'POST',headers:headers(true),body:JSON.stringify({condominioId:id})});
+    const body=await r.json().catch(()=>null);
+    if(!r.ok) throw new Error(body?.error||'Falha na recuperação das postagens');
+    return Array.isArray(body?.items)?body.items:[];
+  }
+
   async function loadPosts(id,force=false){
     if(!id||loading.has(id)||(!force&&loaded.has(id))) return localItems(id);
     loading.add(id);
@@ -69,6 +79,9 @@
 
       if(!remote.length){
         try{remote=await runAudit(id)}catch(e){console.warn('Auditoria de postagens não concluída.',e)}
+      }
+      if(!remote.length){
+        try{remote=await runRecovery(id)}catch(e){console.warn('Recuperação automática não aplicada.',e)}
       }
 
       const merged=mergePosts(remote,before);
@@ -106,6 +119,7 @@
     api.loadPosts=loadPosts;
     api.syncPosts=syncPosts;
     api.auditPosts=runAudit;
+    api.recoverPosts=runRecovery;
     const originalWrite=api.write?.bind(api);
     api.write=(id,items)=>{
       if(originalWrite) originalWrite(id,items);
