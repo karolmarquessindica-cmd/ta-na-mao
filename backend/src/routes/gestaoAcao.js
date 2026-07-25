@@ -43,14 +43,44 @@ async function accessibleCondominio(userId, condominioId) {
   })
 }
 
+function looksLikePost(item) {
+  return Boolean(item && typeof item === 'object' && !Array.isArray(item) && (
+    item.titulo || item.legenda || item.descricao || item.categoria || item.local ||
+    Array.isArray(item.fotos) || item.publicadoPortal !== undefined
+  ))
+}
+
+function collectPostArrays(value, depth = 0, seen = new Set()) {
+  if (depth > 8 || value === null || value === undefined) return []
+  if (typeof value === 'object') {
+    if (seen.has(value)) return []
+    seen.add(value)
+  }
+  if (Array.isArray(value)) {
+    if (value.some(looksLikePost)) return value.filter(looksLikePost)
+    return value.flatMap(item => collectPostArrays(item, depth + 1, seen))
+  }
+  if (typeof value !== 'object') return []
+  const priorityKeys = ['gestaoAcao', 'gestao_em_acao', 'gestaoEmAcao', 'publicacoes', 'postagens', 'feedGestao', 'acoesGestao']
+  const priority = priorityKeys.flatMap(key => collectPostArrays(value[key], depth + 1, seen))
+  if (priority.length) return priority
+  return Object.values(value).flatMap(item => collectPostArrays(item, depth + 1, seen))
+}
+
 function legacyItems(condominio) {
   const cfg = condominio?.portalConfig || {}
-  const candidates = [
-    cfg?.portalMorador?.gestaoAcao,
-    cfg?.gestaoAcao,
-    cfg?.config?.portalMorador?.gestaoAcao,
-  ]
-  return candidates.find(Array.isArray) || []
+  const found = collectPostArrays(cfg)
+  const unique = []
+  for (const item of found) {
+    const identity = String(item.id || item.createdAt || `${item.titulo || ''}|${item.data || ''}|${item.local || ''}`)
+    if (!unique.some(current => String(current.id || current.createdAt || `${current.titulo || ''}|${current.data || ''}|${current.local || ''}`) === identity)) unique.push(item)
+  }
+  return unique
+}
+
+function safeDate(value) {
+  const parsed = value ? new Date(value) : new Date()
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
 }
 
 function normalizeItem(item = {}, condominio) {
@@ -59,16 +89,16 @@ function normalizeItem(item = {}, condominio) {
     legacyId: item.id ? String(item.id) : null,
     condominioId: condominio.id,
     condominioNome: condominio.nome,
-    titulo: String(item.titulo || 'Registro da Gestão').trim() || 'Registro da Gestão',
-    legenda: String(item.legenda || item.descricao || '').trim(),
-    categoria: String(item.categoria || 'Outros').trim() || 'Outros',
+    titulo: String(item.titulo || item.nome || 'Registro da Gestão').trim() || 'Registro da Gestão',
+    legenda: String(item.legenda || item.descricao || item.texto || item.conteudo || '').trim(),
+    categoria: String(item.categoria || item.tipo || 'Outros').trim() || 'Outros',
     status: String(item.status || 'Concluído').trim() || 'Concluído',
-    local: String(item.local || '').trim(),
-    data: item.data || item.createdAt || new Date().toISOString(),
-    fotos: Array.isArray(item.fotos) ? item.fotos : [],
-    publicadoPortal: item.publicadoPortal !== false,
-    createdAt: item.createdAt || new Date().toISOString(),
-    updatedAt: item.updatedAt || new Date().toISOString(),
+    local: String(item.local || item.area || '').trim(),
+    data: safeDate(item.data || item.dataAcao || item.createdAt),
+    fotos: Array.isArray(item.fotos) ? item.fotos : Array.isArray(item.imagens) ? item.imagens : item.foto ? [item.foto] : [],
+    publicadoPortal: item.publicadoPortal !== false && item.visivelPortal !== false && item.publicado !== false,
+    createdAt: safeDate(item.createdAt || item.data),
+    updatedAt: safeDate(item.updatedAt || item.createdAt || item.data),
   }
 }
 
@@ -88,14 +118,14 @@ async function insertItem(item) {
 
 async function migrateLegacy(condominio) {
   const old = legacyItems(condominio)
-  if (!old.length) return
   for (const raw of old) {
     const item = normalizeItem(raw, condominio)
     const existing = item.legacyId
       ? await prisma.$queryRawUnsafe(`SELECT "id" FROM "GestaoAcao" WHERE "condominioId"=$1 AND "legacyId"=$2 LIMIT 1`, condominio.id, item.legacyId)
-      : []
+      : await prisma.$queryRawUnsafe(`SELECT "id" FROM "GestaoAcao" WHERE "condominioId"=$1 AND "titulo"=$2 AND COALESCE("data","createdAt")::date=$3::timestamp::date LIMIT 1`, condominio.id, item.titulo, item.data)
     if (!existing.length) await insertItem(item)
   }
+  return old.length
 }
 
 async function listItems(condominioId) {
@@ -137,9 +167,9 @@ gestaoAcaoRouter.get('/', async (req, res, next) => {
     const condominio = await accessibleCondominio(req.user.id, condominioId)
     if (!condominio) return res.status(404).json({ error: 'Condomínio não encontrado.' })
     await ensureTable()
-    await migrateLegacy(condominio)
+    const migrated = await migrateLegacy(condominio)
     const items = await listItems(condominio.id)
-    res.json({ condominio: { id: condominio.id, nome: condominio.nome, endereco: condominio.endereco }, items })
+    res.json({ condominio: { id: condominio.id, nome: condominio.nome, endereco: condominio.endereco }, items, migrated })
   } catch (error) { next(error) }
 })
 
