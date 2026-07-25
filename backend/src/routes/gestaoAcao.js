@@ -43,62 +43,72 @@ async function accessibleCondominio(userId, condominioId) {
   })
 }
 
+function text(value) {
+  return String(value ?? '').trim()
+}
+
 function looksLikePost(item) {
-  return Boolean(item && typeof item === 'object' && !Array.isArray(item) && (
-    item.titulo || item.legenda || item.descricao || item.categoria || item.local ||
-    Array.isArray(item.fotos) || item.publicadoPortal !== undefined
-  ))
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return false
+  const hasMainText = Boolean(item.titulo || item.legenda || item.descricao || item.texto || item.conteudo)
+  const hasPostMeta = Boolean(item.categoria || item.status || item.local || item.data || item.createdAt || item.publicadoPortal !== undefined)
+  const hasMedia = Array.isArray(item.fotos) || Array.isArray(item.imagens) || Boolean(item.foto || item.imagem)
+  return hasMainText && (hasPostMeta || hasMedia)
 }
 
-function collectPostArrays(value, depth = 0, seen = new Set()) {
-  if (depth > 8 || value === null || value === undefined) return []
-  if (typeof value === 'object') {
-    if (seen.has(value)) return []
-    seen.add(value)
-  }
+function collectLegacyArrays(value, path = 'portalConfig', found = [], seen = new Set()) {
+  if (!value || typeof value !== 'object' || seen.has(value)) return found
+  seen.add(value)
   if (Array.isArray(value)) {
-    if (value.some(looksLikePost)) return value.filter(looksLikePost)
-    return value.flatMap(item => collectPostArrays(item, depth + 1, seen))
+    const posts = value.filter(looksLikePost)
+    if (posts.length) found.push({ path, items: posts })
+    value.forEach((item, index) => collectLegacyArrays(item, `${path}[${index}]`, found, seen))
+    return found
   }
-  if (typeof value !== 'object') return []
-  const priorityKeys = ['gestaoAcao', 'gestao_em_acao', 'gestaoEmAcao', 'publicacoes', 'postagens', 'feedGestao', 'acoesGestao']
-  const priority = priorityKeys.flatMap(key => collectPostArrays(value[key], depth + 1, seen))
-  if (priority.length) return priority
-  return Object.values(value).flatMap(item => collectPostArrays(item, depth + 1, seen))
-}
-
-function legacyItems(condominio) {
-  const cfg = condominio?.portalConfig || {}
-  const found = collectPostArrays(cfg)
-  const unique = []
-  for (const item of found) {
-    const identity = String(item.id || item.createdAt || `${item.titulo || ''}|${item.data || ''}|${item.local || ''}`)
-    if (!unique.some(current => String(current.id || current.createdAt || `${current.titulo || ''}|${current.data || ''}|${current.local || ''}`) === identity)) unique.push(item)
+  for (const [key, child] of Object.entries(value)) {
+    collectLegacyArrays(child, `${path}.${key}`, found, seen)
   }
-  return unique
+  return found
 }
 
-function safeDate(value) {
-  const parsed = value ? new Date(value) : new Date()
-  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+function normalizePhotos(item) {
+  const values = Array.isArray(item.fotos)
+    ? item.fotos
+    : Array.isArray(item.imagens)
+      ? item.imagens
+      : [item.foto || item.imagem].filter(Boolean)
+  return values.filter(Boolean).map(String)
 }
 
-function normalizeItem(item = {}, condominio) {
+function stableLegacyId(item, sourcePath, index) {
+  if (item.id) return String(item.id)
+  if (item.legacyId) return String(item.legacyId)
+  const raw = [sourcePath, index, item.titulo, item.data, item.createdAt, item.local].map(text).join('|')
+  return `legacy_${crypto.createHash('sha256').update(raw).digest('hex').slice(0, 24)}`
+}
+
+function safeDate(value, fallback = new Date()) {
+  const date = value ? new Date(value) : fallback
+  return Number.isNaN(date.getTime()) ? fallback.toISOString() : date.toISOString()
+}
+
+function normalizeItem(item = {}, condominio, sourcePath = 'unknown', index = 0) {
+  const legacyId = stableLegacyId(item, sourcePath, index)
   return {
-    id: String(item.id || crypto.randomUUID()),
-    legacyId: item.id ? String(item.id) : null,
+    id: text(item.id) || crypto.randomUUID(),
+    legacyId,
     condominioId: condominio.id,
     condominioNome: condominio.nome,
-    titulo: String(item.titulo || item.nome || 'Registro da Gestão').trim() || 'Registro da Gestão',
-    legenda: String(item.legenda || item.descricao || item.texto || item.conteudo || '').trim(),
-    categoria: String(item.categoria || item.tipo || 'Outros').trim() || 'Outros',
-    status: String(item.status || 'Concluído').trim() || 'Concluído',
-    local: String(item.local || item.area || '').trim(),
-    data: safeDate(item.data || item.dataAcao || item.createdAt),
-    fotos: Array.isArray(item.fotos) ? item.fotos : Array.isArray(item.imagens) ? item.imagens : item.foto ? [item.foto] : [],
-    publicadoPortal: item.publicadoPortal !== false && item.visivelPortal !== false && item.publicado !== false,
+    titulo: text(item.titulo || item.nome) || 'Registro da Gestão',
+    legenda: text(item.legenda || item.descricao || item.texto || item.conteudo),
+    categoria: text(item.categoria || item.tipo) || 'Outros',
+    status: text(item.status) || 'Concluído',
+    local: text(item.local || item.area),
+    data: safeDate(item.data || item.createdAt),
+    fotos: normalizePhotos(item),
+    publicadoPortal: item.publicadoPortal !== false && item.visivelPortal !== false,
     createdAt: safeDate(item.createdAt || item.data),
     updatedAt: safeDate(item.updatedAt || item.createdAt || item.data),
+    sourcePath,
   }
 }
 
@@ -117,15 +127,30 @@ async function insertItem(item) {
 }
 
 async function migrateLegacy(condominio) {
-  const old = legacyItems(condominio)
-  for (const raw of old) {
-    const item = normalizeItem(raw, condominio)
-    const existing = item.legacyId
-      ? await prisma.$queryRawUnsafe(`SELECT "id" FROM "GestaoAcao" WHERE "condominioId"=$1 AND "legacyId"=$2 LIMIT 1`, condominio.id, item.legacyId)
-      : await prisma.$queryRawUnsafe(`SELECT "id" FROM "GestaoAcao" WHERE "condominioId"=$1 AND "titulo"=$2 AND COALESCE("data","createdAt")::date=$3::timestamp::date LIMIT 1`, condominio.id, item.titulo, item.data)
-    if (!existing.length) await insertItem(item)
+  const sources = collectLegacyArrays(condominio.portalConfig || {})
+  let imported = 0
+  let skipped = 0
+  for (const source of sources) {
+    for (let index = 0; index < source.items.length; index += 1) {
+      const item = normalizeItem(source.items[index], condominio, source.path, index)
+      const existing = await prisma.$queryRawUnsafe(
+        `SELECT "id" FROM "GestaoAcao" WHERE "condominioId"=$1 AND ("legacyId"=$2 OR "id"=$3) LIMIT 1`,
+        condominio.id, item.legacyId, item.id,
+      )
+      if (existing.length) {
+        skipped += 1
+        continue
+      }
+      await insertItem(item)
+      imported += 1
+    }
   }
-  return old.length
+  return {
+    sources: sources.map(source => ({ path: source.path, count: source.items.length })),
+    found: sources.reduce((sum, source) => sum + source.items.length, 0),
+    imported,
+    skipped,
+  }
 }
 
 async function listItems(condominioId) {
@@ -162,36 +187,62 @@ async function mirrorToPortalConfig(condominio, items) {
 
 gestaoAcaoRouter.get('/', async (req, res, next) => {
   try {
-    const condominioId = String(req.query.condominioId || '')
+    const condominioId = text(req.query.condominioId)
     if (!condominioId) return res.status(400).json({ error: 'Condomínio obrigatório.' })
     const condominio = await accessibleCondominio(req.user.id, condominioId)
     if (!condominio) return res.status(404).json({ error: 'Condomínio não encontrado.' })
     await ensureTable()
-    const migrated = await migrateLegacy(condominio)
+    const audit = await migrateLegacy(condominio)
     const items = await listItems(condominio.id)
-    res.json({ condominio: { id: condominio.id, nome: condominio.nome, endereco: condominio.endereco }, items, migrated })
+    if (items.length && audit.imported) await mirrorToPortalConfig(condominio, items)
+    res.json({
+      condominio: { id: condominio.id, nome: condominio.nome, endereco: condominio.endereco },
+      items,
+      audit: { ...audit, databaseCount: items.length },
+    })
+  } catch (error) { next(error) }
+})
+
+gestaoAcaoRouter.get('/audit', async (req, res, next) => {
+  try {
+    const condominioId = text(req.query.condominioId)
+    if (!condominioId) return res.status(400).json({ error: 'Condomínio obrigatório.' })
+    const condominio = await accessibleCondominio(req.user.id, condominioId)
+    if (!condominio) return res.status(404).json({ error: 'Condomínio não encontrado.' })
+    await ensureTable()
+    const before = await listItems(condominio.id)
+    const migration = await migrateLegacy(condominio)
+    const after = await listItems(condominio.id)
+    if (after.length) await mirrorToPortalConfig(condominio, after)
+    res.json({
+      ok: true,
+      condominio: { id: condominio.id, nome: condominio.nome, endereco: condominio.endereco },
+      beforeCount: before.length,
+      afterCount: after.length,
+      migration,
+      items: after,
+    })
   } catch (error) { next(error) }
 })
 
 gestaoAcaoRouter.put('/sync', async (req, res, next) => {
   try {
-    const condominioId = String(req.body?.condominioId || '')
+    const condominioId = text(req.body?.condominioId)
     const incoming = Array.isArray(req.body?.items) ? req.body.items : []
     const condominio = await accessibleCondominio(req.user.id, condominioId)
     if (!condominio) return res.status(404).json({ error: 'Condomínio não encontrado.' })
     await ensureTable()
-    const normalized = incoming.slice(0, 500).map(item => normalizeItem(item, condominio))
-    await prisma.$transaction(async tx => {
-      await tx.$executeRawUnsafe(`DELETE FROM "GestaoAcao" WHERE "condominioId"=$1`, condominio.id)
-      for (const item of normalized) {
-        await tx.$executeRawUnsafe(
-          `INSERT INTO "GestaoAcao" ("id","legacyId","condominioId","titulo","legenda","categoria","status","local","data","fotos","publicadoPortal","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::timestamp,$10::jsonb,$11,$12::timestamp,$13::timestamp)`,
-          item.id, item.legacyId, item.condominioId, item.titulo, item.legenda || null, item.categoria,
-          item.status, item.local || null, item.data, JSON.stringify(item.fotos), item.publicadoPortal,
-          item.createdAt, item.updatedAt,
-        )
-      }
-    })
+    await migrateLegacy(condominio)
+
+    const existing = await listItems(condominio.id)
+    if (!incoming.length) {
+      if (existing.length) await mirrorToPortalConfig(condominio, existing)
+      return res.json({ ok: true, protectedFromEmptySync: true, items: existing })
+    }
+
+    const normalized = incoming.slice(0, 500).map((item, index) => normalizeItem(item, condominio, 'sync', index))
+    for (const item of normalized) await insertItem(item)
+
     const saved = await listItems(condominio.id)
     await mirrorToPortalConfig(condominio, saved)
     res.json({ ok: true, items: saved })
