@@ -22,15 +22,15 @@
   }
 
   function parse(value){try{const v=JSON.parse(value||'[]');return Array.isArray(v)?v:[]}catch{return[]}}
-  function looksLikePost(x){return x&&typeof x==='object'&&(x.titulo||x.legenda||x.descricao||x.categoria||x.local||Array.isArray(x.fotos))}
+  function looksLikePost(x){return x&&typeof x==='object'&&(x.titulo||x.legenda||x.descricao||x.texto||x.conteudo||x.categoria||x.local||Array.isArray(x.fotos)||Array.isArray(x.imagens))}
   function localItems(id){
     const merged=[];
     for(const k of legacyKeys(id)){
       for(const item of parse(localStorage.getItem(k))){
         if(!looksLikePost(item))continue;
         if(item.condominioId&&item.condominioId!==id)continue;
-        const identity=String(item.id||item.createdAt||`${item.titulo}|${item.data}`);
-        if(!merged.some(x=>String(x.id||x.createdAt||`${x.titulo}|${x.data}`)===identity))merged.push(item);
+        const identity=String(item.id||item.legacyId||item.createdAt||`${item.titulo}|${item.data}`);
+        if(!merged.some(x=>String(x.id||x.legacyId||x.createdAt||`${x.titulo}|${x.data}`)===identity))merged.push(item);
       }
     }
     return merged;
@@ -50,6 +50,13 @@
     return all;
   }
 
+  async function runAudit(id){
+    const r=await fetch(BASE+'/api/gestao-acao/audit?condominioId='+encodeURIComponent(id),{headers:headers()});
+    const body=await r.json().catch(()=>null);
+    if(!r.ok) throw new Error(body?.error||'Falha na auditoria das postagens');
+    return Array.isArray(body?.items)?body.items:[];
+  }
+
   async function loadPosts(id,force=false){
     if(!id||loading.has(id)||(!force&&loaded.has(id))) return localItems(id);
     loading.add(id);
@@ -58,7 +65,12 @@
       const r=await fetch(BASE+'/api/gestao-acao?condominioId='+encodeURIComponent(id),{headers:headers()});
       const body=await r.json().catch(()=>null);
       if(!r.ok) throw new Error(body?.error||'Falha ao carregar postagens');
-      const remote=Array.isArray(body?.items)?body.items:[];
+      let remote=Array.isArray(body?.items)?body.items:[];
+
+      if(!remote.length){
+        try{remote=await runAudit(id)}catch(e){console.warn('Auditoria de postagens não concluída.',e)}
+      }
+
       const merged=mergePosts(remote,before);
       saveLocal(id,merged);
       loaded.add(id);
@@ -93,6 +105,7 @@
     api.__dbConnected=true;
     api.loadPosts=loadPosts;
     api.syncPosts=syncPosts;
+    api.auditPosts=runAudit;
     const originalWrite=api.write?.bind(api);
     api.write=(id,items)=>{
       if(originalWrite) originalWrite(id,items);
