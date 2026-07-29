@@ -1,0 +1,19 @@
+{
+  "name": "Tá na Mão — Gestão Condominial",
+  "short_name": "Tá na Mão",
+  "description": "Gestão condominial na palma da mão.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#003B24",
+  "theme_color": "#003B24",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
