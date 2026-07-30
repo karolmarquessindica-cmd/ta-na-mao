@@ -55,12 +55,13 @@
 
   function loadImage(file){
     return new Promise((resolve,reject)=>{
+      const timeout=setTimeout(()=>reject(new Error(`A foto ${file.name} demorou muito para abrir.`)),15000);
       const reader=new FileReader();
-      reader.onerror=()=>reject(new Error(`Não foi possível ler ${file.name}.`));
+      reader.onerror=()=>{clearTimeout(timeout);reject(new Error(`Não foi possível ler ${file.name}.`))};
       reader.onload=()=>{
         const img=new Image();
-        img.onload=()=>resolve(img);
-        img.onerror=()=>reject(new Error(`Formato de imagem não suportado: ${file.name}.`));
+        img.onload=()=>{clearTimeout(timeout);resolve(img)};
+        img.onerror=()=>{clearTimeout(timeout);reject(new Error(`Formato de imagem não suportado: ${file.name}.`))};
         img.src=reader.result;
       };
       reader.readAsDataURL(file);
@@ -69,7 +70,7 @@
 
   async function compressImage(file){
     const img=await loadImage(file);
-    const maxSide=1280;
+    const maxSide=960;
     const scale=Math.min(1,maxSide/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
     const width=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));
     const height=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
@@ -77,10 +78,11 @@
     canvas.width=width;
     canvas.height=height;
     const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx) throw new Error('Não foi possível preparar a imagem.');
     ctx.fillStyle='#fff';
     ctx.fillRect(0,0,width,height);
     ctx.drawImage(img,0,0,width,height);
-    return canvas.toDataURL('image/jpeg',0.72);
+    return canvas.toDataURL('image/jpeg',0.62);
   }
 
   function renderPreview(container,files){
@@ -98,14 +100,13 @@
     });
   }
 
-  async function persistPosts(condoId,items){
+  function syncInBackground(condoId,items){
     const api=window.TNMGestaoAcao;
-    if(api?.syncPosts){
-      await api.syncPosts(condoId,items);
-      safeWrite(items,condoId);
-      return;
-    }
-    safeWrite(items,condoId);
+    if(!api?.syncPosts) return;
+    Promise.race([
+      Promise.resolve(api.syncPosts(condoId,items)),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Tempo limite da sincronização.')),15000))
+    ]).catch(error=>console.warn('Publicação salva localmente; sincronização pendente.',error));
   }
 
   function openModal(){
@@ -141,12 +142,13 @@
 
     modal.querySelector('[data-save]').onclick=async()=>{
       const saveBtn=modal.querySelector('[data-save]');
+      if(saveBtn.disabled) return;
       saveBtn.disabled=true;
       saveBtn.textContent='Preparando fotos...';
       try{
         const currentCondo=selectedCondo||getSelectedCondoFromPage();
         if(!currentCondo?.id) throw new Error('Selecione um condomínio antes de publicar.');
-        const files=[...(fileInput.files||[])].slice(0,8);
+        const files=[...(fileInput.files||[])].slice(0,6);
         const fotos=[];
         for(let i=0;i<files.length;i+=1){
           saveBtn.textContent=`Preparando foto ${i+1} de ${files.length}...`;
@@ -162,10 +164,12 @@
         };
         saveBtn.textContent='Salvando publicação...';
         const next=[item,...read(currentCondo.id)];
-        await persistPosts(currentCondo.id,next);
+        const saved=safeWrite(next,currentCondo.id);
+        if(!saved) throw new Error('O armazenamento do navegador está cheio. Limpe os dados do site e tente novamente.');
         window.dispatchEvent(new CustomEvent('tnm-postagens-updated',{detail:{condominioId:currentCondo.id,source:'admin'}}));
-        alert(`Registro salvo no Gestão em Ação de ${currentCondo.nome}.`);
         overlay.remove();
+        alert(`Registro salvo no Gestão em Ação de ${currentCondo.nome}.`);
+        syncInBackground(currentCondo.id,next);
       }catch(error){
         console.error('Falha ao publicar Gestão em Ação:',error);
         alert(error?.message||'Não foi possível salvar a publicação. Tente novamente.');
