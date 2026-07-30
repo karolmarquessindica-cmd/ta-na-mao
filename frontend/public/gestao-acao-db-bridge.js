@@ -14,6 +14,7 @@
   const syncing=new Set();
   const loaded=new Set();
   const recovered=new Set();
+  const memory=new Map();
 
   function headers(json=false){
     const h={};
@@ -24,7 +25,14 @@
 
   function parse(value){try{const v=JSON.parse(value||'[]');return Array.isArray(v)?v:[]}catch{return[]}}
   function looksLikePost(x){return x&&typeof x==='object'&&(x.titulo||x.legenda||x.descricao||x.texto||x.conteudo||x.categoria||x.local||Array.isArray(x.fotos)||Array.isArray(x.imagens))}
+  function stripDataPhotos(items){
+    return (Array.isArray(items)?items:[]).slice(0,200).map(item=>({
+      ...item,
+      fotos:(Array.isArray(item?.fotos)?item.fotos:[]).filter(src=>!String(src||'').startsWith('data:'))
+    }));
+  }
   function localItems(id){
+    if(memory.has(id)) return memory.get(id);
     const merged=[];
     for(const k of legacyKeys(id)){
       for(const item of parse(localStorage.getItem(k))){
@@ -38,8 +46,35 @@
   }
 
   function saveLocal(id,items){
-    localStorage.setItem(key(id),JSON.stringify((Array.isArray(items)?items:[]).slice(0,500)));
+    const full=(Array.isArray(items)?items:[]).slice(0,500);
+    memory.set(id,full);
+    const light=stripDataPhotos(full);
+    try{
+      localStorage.setItem(key(id),JSON.stringify(light));
+    }catch(error){
+      try{
+        for(const k of Object.keys(localStorage)){
+          if(k.startsWith('tnm_gestao_acao_feed_')&&k!==key(id)) localStorage.removeItem(k);
+        }
+        localStorage.setItem(key(id),JSON.stringify(light.slice(0,60)));
+      }catch{
+        try{localStorage.removeItem(key(id))}catch{}
+        console.warn('Gestão em Ação: cache local cheio. Os dados continuam em memória e no banco.',error);
+      }
+    }
+    return full;
   }
+
+  function cleanupOldCaches(){
+    for(const k of Object.keys(localStorage)){
+      if(!k.startsWith('tnm_gestao_acao_feed_')) continue;
+      try{
+        const list=parse(localStorage.getItem(k));
+        localStorage.setItem(k,JSON.stringify(stripDataPhotos(list)));
+      }catch{try{localStorage.removeItem(k)}catch{}}
+    }
+  }
+  cleanupOldCaches();
 
   function mergePosts(remote,local){
     const all=[];
@@ -76,19 +111,12 @@
       const body=await r.json().catch(()=>null);
       if(!r.ok) throw new Error(body?.error||'Falha ao carregar postagens');
       let remote=Array.isArray(body?.items)?body.items:[];
-
-      if(!remote.length){
-        try{remote=await runAudit(id)}catch(e){console.warn('Auditoria de postagens não concluída.',e)}
-      }
-      if(!remote.length){
-        try{remote=await runRecovery(id)}catch(e){console.warn('Recuperação automática não aplicada.',e)}
-      }
-
+      if(!remote.length){try{remote=await runAudit(id)}catch(e){console.warn('Auditoria de postagens não concluída.',e)}}
+      if(!remote.length){try{remote=await runRecovery(id)}catch(e){console.warn('Recuperação automática não aplicada.',e)}}
       const merged=mergePosts(remote,before);
       saveLocal(id,merged);
       loaded.add(id);
-      if(!remote.length&&merged.length) await syncPosts(id,merged);
-      else if(merged.length>remote.length) await syncPosts(id,merged);
+      if((!remote.length&&merged.length)||merged.length>remote.length) await syncPosts(id,merged);
       window.dispatchEvent(new CustomEvent('tnm-postagens-updated',{detail:{condominioId:id,source:'database'}}));
       return merged;
     }catch(e){
@@ -108,7 +136,8 @@
       if(!r.ok) throw new Error(body?.error||'Falha ao salvar postagens');
       if(Array.isArray(body?.items)&&body.items.length) saveLocal(id,body.items);
     }catch(e){
-      console.error('Gestão em Ação: as alterações ficaram salvas localmente, mas não sincronizaram com o banco.',e);
+      console.error('Gestão em Ação: não sincronizou com o banco.',e);
+      throw e;
     }finally{syncing.delete(id)}
   }
 
@@ -120,11 +149,12 @@
     api.syncPosts=syncPosts;
     api.auditPosts=runAudit;
     api.recoverPosts=runRecovery;
-    const originalWrite=api.write?.bind(api);
+    api.read=id=>localItems(id);
     api.write=(id,items)=>{
-      if(originalWrite) originalWrite(id,items);
-      else saveLocal(id,items);
-      syncPosts(id,items);
+      const full=saveLocal(id,items);
+      syncPosts(id,full).catch(()=>{});
+      window.dispatchEvent(new CustomEvent('tnm-postagens-updated',{detail:{condominioId:id,source:'local'}}));
+      return full;
     };
     (api.getCondominios?.()||[]).forEach(c=>loadPosts(c.id));
   }
@@ -135,9 +165,9 @@
     (api?.getCondominios?.()||[]).forEach(c=>loadPosts(c.id,true));
   });
   window.addEventListener('tnm-postagens-updated',event=>{
-    if(event?.detail?.source==='database') return;
+    if(event?.detail?.source==='database'||event?.detail?.source==='local') return;
     const id=event?.detail?.condominioId;
-    if(id&&!loading.has(id)) syncPosts(id,localItems(id));
+    if(id&&!loading.has(id)) syncPosts(id,localItems(id)).catch(()=>{});
   });
   setInterval(connect,350);
 })();
