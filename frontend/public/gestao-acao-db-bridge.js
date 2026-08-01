@@ -86,6 +86,13 @@
     return all;
   }
 
+  function isEsmeraldaIV(id){
+    const list=window.TNMGestaoAcao?.getCondominios?.()||[];
+    const condo=list.find(c=>String(c?.id||'')===String(id||''));
+    const name=String(condo?.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    return name.includes('esmeralda')&&(/\biv\b/.test(name)||name.includes(' 4'));
+  }
+
   async function runAudit(id){
     const r=await fetch(BASE+'/api/gestao-acao/audit?condominioId='+encodeURIComponent(id),{headers:headers()});
     const body=await r.json().catch(()=>null);
@@ -94,7 +101,7 @@
   }
 
   async function runRecovery(id){
-    if(recovered.has(id)) return [];
+    if(!isEsmeraldaIV(id)||recovered.has(id)) return [];
     recovered.add(id);
     const r=await fetch(BASE+'/api/gestao-acao-recovery',{method:'POST',headers:headers(true),body:JSON.stringify({condominioId:id})});
     const body=await r.json().catch(()=>null);
@@ -112,7 +119,7 @@
       if(!r.ok) throw new Error(body?.error||'Falha ao carregar postagens');
       let remote=Array.isArray(body?.items)?body.items:[];
       if(!remote.length){try{remote=await runAudit(id)}catch(e){console.warn('Auditoria de postagens não concluída.',e)}}
-      if(!remote.length){try{remote=await runRecovery(id)}catch(e){console.warn('Recuperação automática não aplicada.',e)}}
+      if(!remote.length&&isEsmeraldaIV(id)){try{remote=await runRecovery(id)}catch(e){console.warn('Recuperação automática do Esmeralda IV não aplicada.',e)}}
       const merged=mergePosts(remote,before);
       saveLocal(id,merged);
       loaded.add(id);
