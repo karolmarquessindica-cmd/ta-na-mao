@@ -3,6 +3,7 @@
   let condominios=[];
   let loadingCondos=false;
   const loadingPosts=new Map();
+  const memoryPosts=new Map();
   const BASE='https://ta-na-mao-9bii.onrender.com';
   const originalFetch=window.fetch.bind(window);
   const token=()=>localStorage.getItem('tnm_token')||'';
@@ -13,8 +14,44 @@
     const candidates=[portal?.gestaoAcao,portal?.publicacoesGestao,portal?.gestaoEmAcao,cfg?.gestaoAcao,value?.gestaoAcao];
     return candidates.find(Array.isArray)||[];
   };
-  function read(id){try{return JSON.parse(localStorage.getItem(key(id))||'[]')}catch{return[]}}
-  function store(id,posts){const list=Array.isArray(posts)?posts.slice(0,200):[];localStorage.setItem(key(id),JSON.stringify(list));const c=condominios.find(x=>x.id===id);if(c){c.portalConfig=c.portalConfig||{};c.portalConfig.portalMorador=c.portalConfig.portalMorador||{};c.portalConfig.portalMorador.gestaoAcao=list}return list}
+  const lightweight=posts=>(Array.isArray(posts)?posts:[]).slice(0,200).map(item=>({
+    ...item,
+    fotos:(Array.isArray(item?.fotos)?item.fotos:[]).filter(src=>!String(src||'').startsWith('data:'))
+  }));
+  function clearHeavyGestaoCache(){
+    for(let i=localStorage.length-1;i>=0;i--){
+      const k=localStorage.key(i)||'';
+      if(k.startsWith('tnm_gestao_acao_feed_')||k.startsWith('tnm_gestao_acao_')||k.startsWith('gestao_acao_')||k.startsWith('tnm_publicacoes_')){
+        try{localStorage.removeItem(k)}catch{}
+      }
+    }
+  }
+  function read(id){
+    if(memoryPosts.has(id)) return memoryPosts.get(id);
+    try{
+      const list=JSON.parse(localStorage.getItem(key(id))||'[]');
+      return Array.isArray(list)?list:[];
+    }catch{return[]}
+  }
+  function store(id,posts){
+    const full=(Array.isArray(posts)?posts:[]).slice(0,200);
+    memoryPosts.set(id,full);
+    const light=lightweight(full);
+    try{
+      localStorage.setItem(key(id),JSON.stringify(light));
+    }catch(error){
+      console.warn('Gestão em Ação: limpando cache local cheio.',error);
+      clearHeavyGestaoCache();
+      try{localStorage.setItem(key(id),JSON.stringify(light.slice(0,80)))}catch(e){console.warn('Gestão em Ação: cache local indisponível.',e)}
+    }
+    const c=condominios.find(x=>x.id===id);
+    if(c){
+      c.portalConfig=c.portalConfig||{};
+      c.portalConfig.portalMorador=c.portalConfig.portalMorador||{};
+      c.portalConfig.portalMorador.gestaoAcao=full;
+    }
+    return full;
+  }
   function hydrate(list=[]){
     condominios=list.filter(c=>c?.id&&c?.nome);
     condominios.forEach(c=>{const posts=extractPosts(c);if(posts.length)store(c.id,posts)});
@@ -24,7 +61,12 @@
   async function loadCondominios(force=false){
     if(loadingCondos||(!force&&condominios.length))return condominios;
     loadingCondos=true;
-    try{const r=await originalFetch(BASE+'/api/condominios',{headers:token()?{Authorization:'Bearer '+token()}:{}});const body=await r.json().catch(()=>[]);const list=Array.isArray(body)?body:(body?.data||body?.items||[]);if(r.ok)hydrate(list)}catch(e){console.warn('Não foi possível carregar os condomínios',e)}finally{loadingCondos=false}
+    try{
+      const r=await originalFetch(BASE+'/api/condominios',{headers:token()?{Authorization:'Bearer '+token()}:{}});
+      const body=await r.json().catch(()=>[]);
+      const list=Array.isArray(body)?body:(body?.data||body?.items||[]);
+      if(r.ok)hydrate(list);
+    }catch(e){console.warn('Não foi possível carregar os condomínios',e)}finally{loadingCondos=false}
     return condominios;
   }
   async function loadPosts(id,force=false){
@@ -44,10 +86,29 @@
     })();
     loadingPosts.set(id,promise);return promise;
   }
-  window.fetch=async function(input,init){const url=typeof input==='string'?input:(input&&input.url)||'';const res=await originalFetch(input,init);try{const data=await res.clone().json();const list=Array.isArray(data)?data:(data?.data||data?.items||[]);if(list.length&&list[0]?.id&&list[0]?.nome&&url.includes('condominios'))hydrate(list)}catch{}return res};
+  window.fetch=async function(input,init){
+    const url=typeof input==='string'?input:(input&&input.url)||'';
+    const res=await originalFetch(input,init);
+    try{
+      const data=await res.clone().json();
+      const list=Array.isArray(data)?data:(data?.data||data?.items||[]);
+      if(list.length&&list[0]?.id&&list[0]?.nome&&url.includes('condominios'))hydrate(list);
+    }catch{}
+    return res;
+  };
   function condo(){const txt=document.body.innerText||'';return condominios.find(c=>txt.includes(c.nome))||condominios[0]||null}
-  async function saveBackend(id,items){if(!token()||!id)return;try{const r=await originalFetch(`${BASE}/api/condominios/${id}/portal-config`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify({portalMorador:{gestaoAcao:items}})});if(!r.ok)throw new Error(`Erro ${r.status}`)}catch(e){console.warn('Gestão em Ação não sincronizou',e)}}
-  function write(id,items){const list=store(id,items);saveBackend(id,list);window.dispatchEvent(new CustomEvent('tnm-postagens-updated',{detail:{condominioId:id}}))}
+  async function saveBackend(id,items){
+    if(!token()||!id)return;
+    try{
+      const r=await originalFetch(`${BASE}/api/condominios/${id}/portal-config`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token()},body:JSON.stringify({portalMorador:{gestaoAcao:items}})});
+      if(!r.ok)throw new Error(`Erro ${r.status}`);
+    }catch(e){console.warn('Gestão em Ação não sincronizou',e)}
+  }
+  function write(id,items){
+    const list=store(id,items);
+    saveBackend(id,list);
+    window.dispatchEvent(new CustomEvent('tnm-postagens-updated',{detail:{condominioId:id}}));
+  }
   function fileToDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
   function preview(box,files,item){box.innerHTML='';if(item?.fotos?.length&&!files.length){box.textContent='Fotos atuais mantidas. Se escolher novas fotos, elas serão substituídas.';return}if(!files.length){box.textContent='Nenhuma foto selecionada.';return}[...files].forEach((f,i)=>{const d=document.createElement('div');d.textContent=`📷 Foto ${i+1} — ${f.name}`;box.appendChild(d)})}
   function openForm(item=null,forcedCondo=null){
@@ -61,5 +122,6 @@
   function openManager(){const c=condo();if(!c)return alert('Condomínio não identificado.');loadPosts(c.id,true).then(()=>alert('Use a aba Postagens para administrar as publicações.'))}
   function addBtn(){const buttons=[...document.querySelectorAll('[data-ga-manager-btn]')];if(document.body.dataset.postagensPage){buttons.forEach(b=>b.remove());return}buttons.slice(1).forEach(b=>b.remove())}
   window.TNMGestaoAcao={openForm,openManager,read,write,condo,loadCondominios,loadPosts,getCondominios:()=>condominios.slice()};
+  clearHeavyGestaoCache();
   loadCondominios(true);setInterval(addBtn,900);
 })();
