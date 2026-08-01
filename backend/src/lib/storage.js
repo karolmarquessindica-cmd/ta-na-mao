@@ -1,4 +1,4 @@
-// src/lib/storage.js — Factory de armazenamento: S3/R2 em prod, /uploads/ local em dev
+// src/lib/storage.js — Factory de armazenamento: S3/R2 em produção, /uploads/ somente em desenvolvimento
 import {
   S3Client,
   PutObjectCommand,
@@ -10,26 +10,32 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 
-// ─── Detecção do modo ──────────────────────────────────────────────────────────
-export const isS3Enabled = !!process.env.S3_BUCKET
+const isProduction = process.env.NODE_ENV === 'production'
+const requiredS3Variables = ['S3_BUCKET', 'S3_ACCESS_KEY', 'S3_SECRET_KEY']
+const missingS3Variables = requiredS3Variables.filter(name => !String(process.env[name] || '').trim())
 
-// ─── Cliente S3 (criado apenas se configurado) ────────────────────────────────
+// Só considera o armazenamento permanente ativo quando todas as credenciais essenciais existem.
+export const isS3Enabled = missingS3Variables.length === 0
+export const isPersistentStorageReady = isS3Enabled
+
 let s3 = null
 if (isS3Enabled) {
   s3 = new S3Client({
     region: process.env.S3_REGION || 'auto',
-    // S3_ENDPOINT permite compatibilidade com Cloudflare R2 / MinIO
     ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT } : {}),
     credentials: {
       accessKeyId: process.env.S3_ACCESS_KEY,
       secretAccessKey: process.env.S3_SECRET_KEY,
     },
-    // forcePathStyle necessário para R2 / MinIO (endpoint customizado)
-    forcePathStyle: !!process.env.S3_ENDPOINT,
+    forcePathStyle: Boolean(process.env.S3_ENDPOINT),
   })
+} else if (isProduction) {
+  console.error(
+    `[storage] Armazenamento persistente não configurado. Variáveis ausentes: ${missingS3Variables.join(', ')}. ` +
+    'Uploads serão recusados para impedir perda de arquivos após reinícios do servidor.'
+  )
 }
 
-// ─── Multer: memoryStorage (S3) ou diskStorage (local) ───────────────────────
 const UPLOAD_DIR = 'uploads'
 
 if (!isS3Enabled && !fs.existsSync(UPLOAD_DIR)) {
@@ -49,21 +55,26 @@ export const multerUpload = isS3Enabled
       limits: { fileSize: 20 * 1024 * 1024 },
     })
 
-// ─── uploadFile ───────────────────────────────────────────────────────────────
+function persistentStorageError(file) {
+  if (file?.path && fs.existsSync(file.path)) {
+    try { fs.unlinkSync(file.path) } catch {}
+  }
+  const error = new Error(
+    'O armazenamento permanente de imagens ainda não foi configurado. Tente novamente após a ativação do armazenamento.'
+  )
+  error.status = 503
+  error.code = 'PERSISTENT_STORAGE_NOT_CONFIGURED'
+  return error
+}
+
 /**
- * Faz upload de um arquivo para S3/R2 ou mantém no disco local.
- *
- * S3 mode : file deve ter { buffer, originalname, mimetype, size }  (memoryStorage)
- * Local   : file deve ter { filename }                               (diskStorage)
- *
- * @param {object} file   - objeto multer
- * @param {string} folder - pasta no bucket (ex: 'docs', 'fotos', 'comprovantes')
- * @returns {{ key: string, url: string }}
- *   key : identificador de armazenamento (usado em deleteFile / getSignedUrl)
- *   url : URL relativa (local) ou chave S3 — use getSignedUrl(key) para download
+ * Envia um arquivo para S3/R2. O disco local só é permitido em desenvolvimento.
+ * Em produção sem S3/R2, a requisição é recusada para que nenhum arquivo seja
+ * aceito e posteriormente perdido no filesystem temporário do Render.
  */
 export async function uploadFile(file, folder = 'docs') {
   if (!isS3Enabled) {
+    if (isProduction) throw persistentStorageError(file)
     return {
       key: `${UPLOAD_DIR}/${file.filename}`,
       url: `/uploads/${file.filename}`,
@@ -81,36 +92,21 @@ export async function uploadFile(file, folder = 'docs') {
       Body: file.buffer,
       ContentType: file.mimetype,
       ContentLength: file.size,
+      Metadata: {
+        originalName: Buffer.from(file.originalname || 'arquivo').toString('base64').slice(0, 512),
+      },
     })
   )
 
-  // Em S3 mode, o campo `url` armazena a chave S3 (sem "/uploads/")
-  // O frontend deve chamar GET /download para obter a URL pré-assinada
   return { key, url: key }
 }
 
-// ─── getSignedUrl ─────────────────────────────────────────────────────────────
-/**
- * Gera URL pré-assinada válida por 1 hora.
- * Retorna null se S3 não estiver habilitado.
- *
- * @param {string} key - chave S3 (ex: 'docs/123.pdf')
- * @returns {Promise<string|null>}
- */
 export async function getSignedUrl(key) {
   if (!isS3Enabled) return null
   const command = new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key })
   return s3GetSignedUrl(s3, command, { expiresIn: 3600 })
 }
 
-// ─── deleteFile ───────────────────────────────────────────────────────────────
-/**
- * Remove um arquivo do S3 ou do disco local.
- *
- * @param {string} key
- *   S3   : chave do objeto (ex: 'docs/123.pdf')
- *   Local: caminho relativo ao processo (ex: 'uploads/123.pdf')
- */
 export async function deleteFile(key) {
   if (!key) return
 
@@ -122,14 +118,8 @@ export async function deleteFile(key) {
   await s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }))
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-/**
- * Extrai a chave de armazenamento a partir da url salva no banco.
- *   Local: '/uploads/file.pdf'  → 'uploads/file.pdf'
- *   S3   : 'docs/file.pdf'      → 'docs/file.pdf'
- */
 export function storageKeyFromUrl(url) {
   if (!url) return null
-  if (url.startsWith('/uploads/')) return url.slice(1) // remove leading '/'
-  return url // já é chave S3
+  if (url.startsWith('/uploads/')) return url.slice(1)
+  return url
 }
