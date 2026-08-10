@@ -28,6 +28,7 @@ import { iaRouter }          from './routes/ia.js'
 import { gestaoAcaoRouter }  from './routes/gestaoAcao.js'
 import { gestaoAcaoRecoveryRouter } from './routes/gestaoAcaoRecovery.js'
 import { condominioRouter }  from './routes/condominio.js'
+import { condominioDeleteSafeRouter } from './routes/condominioDeleteSafe.js'
 import { condominioLogoSafeRouter } from './routes/condominioLogoSafe.js'
 import { logoDataPublicRouter } from './routes/logoDataPublic.js'
 import { portalConfigSaveSafeRouter } from './routes/portalConfigSaveSafe.js'
@@ -134,6 +135,7 @@ app.use('/api/condominios',   portalConfigSaveSafeRouter)
 app.use('/api/condominios',   portalConfigCompatRouter)
 app.use('/api/condominios',   portalDocumentosSafeRouter)
 app.use('/api/condominios',   condominioLogoSafeRouter)
+app.use('/api/condominios',   condominioDeleteSafeRouter)
 app.use('/api/condominios',   condominioRouter)
 
 // Chamados públicos devem ser avaliados antes de qualquer middleware genérico de portal.
