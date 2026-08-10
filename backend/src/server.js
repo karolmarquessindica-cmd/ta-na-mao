@@ -40,6 +40,7 @@ import { portalTicketConfirmSafeRouter } from './routes/portalTicketConfirmSafe.
 import { portalPublicSafeRouter } from './routes/portalPublicSafe.js'
 import { portalRouter }      from './routes/portal.js'
 import { arquivosPublicosRouter } from './routes/arquivosPublicos.js'
+import { checklistPresetsSafeRouter } from './routes/checklistPresetsSafe.js'
 import { checklistsRouter }  from './routes/checklists.js'
 import { agendadorRouter }   from './jobs/agendador.js'
 import { errorHandler, requestId } from './middleware/errorHandler.js'
@@ -153,6 +154,7 @@ app.use('/api/portal',        portalPublicSafeRouter)
 app.use('/api/portal',        portalRouter)
 
 app.use('/api/arquivos',      arquivosPublicosRouter)
+app.use('/api/checklists',    checklistPresetsSafeRouter)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/jobs',          agendadorRouter)
 
