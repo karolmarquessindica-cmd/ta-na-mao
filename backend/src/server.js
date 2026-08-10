@@ -27,6 +27,7 @@ import { relatorioRouter }   from './routes/relatorio.js'
 import { iaRouter }          from './routes/ia.js'
 import { gestaoAcaoRouter }  from './routes/gestaoAcao.js'
 import { gestaoAcaoDeleteSafeRouter } from './routes/gestaoAcaoDeleteSafe.js'
+import { gestaoAcaoSyncSafeRouter } from './routes/gestaoAcaoSyncSafe.js'
 import { gestaoAcaoRecoveryRouter } from './routes/gestaoAcaoRecovery.js'
 import { condominioRouter }  from './routes/condominio.js'
 import { condominioDeleteSafeRouter } from './routes/condominioDeleteSafe.js'
@@ -131,6 +132,7 @@ app.use('/api/reservas',      reservaRouter)
 app.use('/api/relatorios',    relatorioRouter)
 app.use('/api/ia',            iaRouter)
 app.use('/api/gestao-acao',   gestaoAcaoDeleteSafeRouter)
+app.use('/api/gestao-acao',   gestaoAcaoSyncSafeRouter)
 app.use('/api/gestao-acao',   gestaoAcaoRouter)
 app.use('/api/gestao-acao-recovery', gestaoAcaoRecoveryRouter)
 app.use('/api/condominios',   portalSlugSafeRouter)
