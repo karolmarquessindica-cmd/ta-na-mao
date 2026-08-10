@@ -26,15 +26,30 @@ async function scoped(req, requestedId) {
   return acesso?.id || null
 }
 
-function parseDate(value) {
+function dateOnly(value) {
   if (!value) return null
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) return `${match[1]}-${match[2]}-${match[3]}`
+  }
   const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
+
+function parseDate(value) {
+  const only = dateOnly(value)
+  if (!only) return null
+  const [year, month, day] = only.split('-').map(Number)
+  // Meio-dia UTC evita que datas de calendário voltem um dia no fuso do Brasil.
+  const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0))
   return Number.isNaN(d.getTime()) ? null : d
 }
 
 function addMonths(value, months) {
-  const d = new Date(value)
-  d.setMonth(d.getMonth() + months)
+  const d = parseDate(value)
+  if (!d) return null
+  d.setUTCMonth(d.getUTCMonth() + months)
   return d
 }
 
@@ -42,8 +57,8 @@ function nextDate(lastDate, periodicidade = '', frequencia = '') {
   const base = parseDate(lastDate)
   if (!base) return null
   const text = `${periodicidade} ${frequencia}`.toLowerCase()
-  if (text.includes('semanal')) { const d = new Date(base); d.setDate(d.getDate() + 7); return d }
-  if (text.includes('quinzenal')) { const d = new Date(base); d.setDate(d.getDate() + 15); return d }
+  if (text.includes('semanal')) { const d = new Date(base); d.setUTCDate(d.getUTCDate() + 7); return d }
+  if (text.includes('quinzenal')) { const d = new Date(base); d.setUTCDate(d.getUTCDate() + 15); return d }
   if (text.includes('bimestral')) return addMonths(base, 2)
   if (text.includes('trimestral')) return addMonths(base, 3)
   if (text.includes('semestral')) return addMonths(base, 6)
@@ -62,8 +77,8 @@ function response(item) {
     prioridade: item.prioridade,
     periodicidade: c.periodicidade || p.periodicidade || '',
     frequencia: c.frequencia || p.frequencia || '',
-    dataUltimaManutencao: c.dataUltimaManutencao || item.dataConclusao || null,
-    dataProximaManutencao: c.dataProximaManutencao || item.dataVencimento || null,
+    dataUltimaManutencao: dateOnly(c.dataUltimaManutencao || item.dataConclusao),
+    dataProximaManutencao: dateOnly(c.dataProximaManutencao || item.dataVencimento),
     observacoesPlanejamento: c.observacoesPlanejamento || '',
     responsavel: item.responsavel || '',
     empresa: item.empresa || '',
@@ -97,15 +112,17 @@ manutencaoPlanejamentoRouter.patch('/:id/planejamento', async (req, res, next) =
     const current = obj(item.checklist)
     const periodicidade = req.body.periodicidade ?? current.periodicidade ?? item.planoItens?.[0]?.periodicidade ?? ''
     const frequencia = req.body.frequencia ?? current.frequencia ?? item.planoItens?.[0]?.frequencia ?? ''
-    const ultima = req.body.dataUltimaManutencao || current.dataUltimaManutencao || null
-    const proxima = parseDate(req.body.dataProximaManutencao || req.body.dataVencimento) || nextDate(ultima, periodicidade, frequencia)
+    const ultimaOnly = dateOnly(req.body.dataUltimaManutencao ?? current.dataUltimaManutencao)
+    const proxima = parseDate(req.body.dataProximaManutencao || req.body.dataVencimento) || nextDate(ultimaOnly, periodicidade, frequencia)
+    const proximaOnly = dateOnly(proxima)
 
     const checklist = {
       ...current,
       periodicidade,
       frequencia,
-      dataUltimaManutencao: ultima,
-      dataProximaManutencao: proxima ? proxima.toISOString() : null,
+      // Datas de planejamento são datas de calendário, não instantes de tempo.
+      dataUltimaManutencao: ultimaOnly,
+      dataProximaManutencao: proximaOnly,
       observacoesPlanejamento: req.body.observacoesPlanejamento ?? current.observacoesPlanejamento ?? '',
       referenciaLegal: req.body.referenciaLegal ?? current.referenciaLegal ?? item.planoItens?.[0]?.referenciaLegal ?? '',
       atualizadoManualEm: new Date().toISOString(),
