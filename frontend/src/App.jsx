@@ -2996,6 +2996,7 @@ function ManutPageV2({ user, toast }) {
   const [show, setShow] = useState(false);
   const [links, setLinks] = useState({});
   const [openingReportId, setOpeningReportId] = useState("");
+  const [calendarBusy, setCalendarBusy] = useState(false);
   const [form, setForm] = useState({ titulo:"Elevador", local:"Bloco A", descricao:"Revisao mensal", tipo:"PREVENTIVA", prioridade:"MEDIA", responsavel:"Empresa X", dataVencimento:"2026-04-27", custo:"" });
   const { copyNow, manualCopyModal } = useSafeCopy(toast);
   const f = k => e => setForm(p=>({...p,[k]:e.target.value}));
@@ -3006,8 +3007,45 @@ function ManutPageV2({ user, toast }) {
 
   const path = query || `/manutencoes?condominioId=${encodeURIComponent(filters.condominioId || defaultCondo || "")}`;
   const { data, loading, reload } = useFetch(path, [path]);
+  const { data: calendarStatus, loading: calendarLoading, reload: reloadCalendarStatus } = useFetch("/logo-data/google/calendar/status");
   const manutencoes = asList(data);
   const selectedCondominioId = filters.condominioId || defaultCondo || "";
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("googleCalendar");
+    if (result) {
+      params.delete("googleCalendar");
+      window.history.replaceState({}, "", window.location.pathname + (params.toString() ? `?${params}` : "") + window.location.hash);
+      if (result === "connected") toast("Google Agenda conectado com sucesso.", "ok");
+      else if (result === "denied") toast("A conexão com o Google Agenda foi cancelada.", "err");
+      else if (result === "invalid") toast("Retorno do Google Agenda inválido. Tente conectar novamente.", "err");
+      else toast("Não foi possível conectar o Google Agenda.", "err");
+    }
+  }, []);
+
+  async function connectGoogleCalendar() {
+    setCalendarBusy(true);
+    try {
+      const result = await api.get("/logo-data/google/calendar/connect");
+      if (!result.url) throw new Error("URL de conexão do Google Agenda não recebida.");
+      window.location.href = result.url;
+    } catch(e) {
+      toast(e.message, "err");
+      setCalendarBusy(false);
+    }
+  }
+
+  async function disconnectGoogleCalendar() {
+    if (!confirm("Desconectar sua conta do Google Agenda?")) return;
+    setCalendarBusy(true);
+    try {
+      await api.del("/logo-data/google/calendar/disconnect");
+      toast("Google Agenda desconectado.", "ok");
+      await reloadCalendarStatus();
+    } catch(e) { toast(e.message, "err"); }
+    finally { setCalendarBusy(false); }
+  }
 
   function buildQuery(next = filters) {
     const qs = new URLSearchParams();
@@ -3091,6 +3129,26 @@ function ManutPageV2({ user, toast }) {
           <p style={{fontSize:13,color:C.muted,marginTop:3}}>Filtros por edificacao e execucao por link publico seguro.</p>
         </div>
         <button className="btn btn-primary btn-sm" onClick={()=>setShow(true)}><Ic n="plus" s={14} /> Nova avulsa</button>
+      </div>
+
+      <div className="card" style={{padding:16,marginBottom:18,display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:42,height:42,borderRadius:12,background:"#EEF6EF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>📅</div>
+          <div>
+            <div style={{fontFamily:"'Sora',sans-serif",fontSize:15,fontWeight:800,color:C.primary}}>Google Agenda</div>
+            <p style={{fontSize:13,color:C.muted,marginTop:3}}>
+              {calendarLoading ? "Consultando status..." : calendarStatus?.connected ? `Conectado${calendarStatus.email ? ` · ${calendarStatus.email}` : ""}` : "Desconectado"}
+            </p>
+            {calendarStatus?.error && <p style={{fontSize:12,color:C.danger,marginTop:4}}>{calendarStatus.error}</p>}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {calendarStatus?.connected ? (
+            <button className="btn btn-ghost btn-sm" onClick={disconnectGoogleCalendar} disabled={calendarBusy}>{calendarBusy ? "Aguarde..." : "Desconectar"}</button>
+          ) : (
+            <button className="btn btn-primary btn-sm" onClick={connectGoogleCalendar} disabled={calendarBusy || calendarLoading}>{calendarBusy ? "Abrindo..." : "Conectar Google Agenda"}</button>
+          )}
+        </div>
       </div>
 
       <div className="card" style={{padding:16,marginBottom:18}}>
