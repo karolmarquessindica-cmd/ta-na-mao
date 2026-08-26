@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__TNM_COT_DB__)return;window.__TNM_COT_DB__=true;
-const KEY='tnm_cotacoes_v1',API='https://ta-na-mao-1.onrender.com/api';
+const KEY='tnm_cotacoes_v1',API='https://ta-na-mao-9bii.onrender.com/api';
 const token=()=>localStorage.getItem('tnm_token');
 function condoId(){try{return JSON.parse(atob(token().split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).condominioId}catch{return null}}
 const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}};
