@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.__TNM_COT_FIX__)return;window.__TNM_COT_FIX__=true;
-const API='https://ta-na-mao-1.onrender.com/api';
+const API='https://ta-na-mao-9bii.onrender.com/api';
 const auth=()=>({Authorization:`Bearer ${localStorage.getItem('tnm_token')}`,'Content-Type':'application/json'});
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function req(path,opt={}){const r=await fetch(API+path,{...opt,headers:{...auth(),...(opt.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'Não foi possível concluir a operação.');return d}
