@@ -11,6 +11,7 @@ import { authRouter } from './routes/auth.js'
 import { manutencaoRouter } from './routes/manutencao.js'
 import { manutencaoPlanejamentoRouter } from './routes/manutencaoPlanejamento.js'
 import { manutencaoExecucaoPublicaRouter } from './routes/manutencaoExecucaoPublica.js'
+import { manutencaoControleRouter } from './routes/manutencaoControle.js'
 import { chamadoRouter } from './routes/chamado.js'
 import { documentoRouter } from './routes/documento.js'
 import { vozRouter } from './routes/voz.js'
@@ -66,7 +67,7 @@ app.use('/api/maintenance',manutencaoExecucaoPublicaRouter);app.use('/api/mainte
 app.use('/api/chamados',chamadoRouter);app.use('/api/documentos',documentoRouter);app.use('/api/voz',vozRouter);app.use('/api/banners',bannerRouter);app.use('/api/inventario',inventarioRouter);app.use('/api/denuncias',denunciaRouter);app.use('/api/comunicados',comunicadoRouter);app.use('/api/dashboard',dashboardRouter);app.use('/api/notificacoes',notificacaoRouter);app.use('/api/whatsapp',whatsappRouter);app.use('/api/financeiro',financeiroRouter);app.use('/api/reservas',reservaRouter);app.use('/api/relatorios',relatorioRouter);app.use('/api/ia',iaRouter)
 app.use('/api/cotacoes',cotacaoRouter)
 app.use('/api/gestao-acao',gestaoAcaoDeleteSafeRouter);app.use('/api/gestao-acao',gestaoAcaoSyncSafeRouter);app.use('/api/gestao-acao',gestaoAcaoRouter);app.use('/api/gestao-acao-recovery',gestaoAcaoRecoveryRouter)
-app.use('/api/condominios',portalSlugSafeRouter);app.use('/api/condominios',portalConfigSaveSafeRouter);app.use('/api/condominios',portalConfigCompatRouter);app.use('/api/condominios',portalDocumentosSafeRouter);app.use('/api/condominios',condominioLogoSafeRouter);app.use('/api/condominios',condominioDeleteSafeRouter);app.use('/api/condominios',condominioRouter)
+app.use('/api/condominios',manutencaoControleRouter);app.use('/api/condominios',portalSlugSafeRouter);app.use('/api/condominios',portalConfigSaveSafeRouter);app.use('/api/condominios',portalConfigCompatRouter);app.use('/api/condominios',portalDocumentosSafeRouter);app.use('/api/condominios',condominioLogoSafeRouter);app.use('/api/condominios',condominioDeleteSafeRouter);app.use('/api/condominios',condominioRouter)
 app.use('/api/portal-public',portalTicketConfirmSafeRouter);app.use('/api/public/portal',portalTicketConfirmSafeRouter);app.use('/api/portal',portalTicketConfirmSafeRouter)
 app.use('/api/portal-public',portalSlugResolveRouter);app.use('/api/public/portal',portalSlugResolveRouter);app.use('/api/portal',portalSlugResolveRouter);app.use('/api/portal-public',portalPublicSafeRouter);app.use('/api/public/portal',portalPublicSafeRouter);app.use('/api/portal',portalPublicSafeRouter);app.use('/api/portal',portalRouter)
 app.use('/api/arquivos',arquivosPublicosRouter);app.use('/api/checklists',checklistPresetsSafeRouter);app.use('/api/checklists',checklistsRouter);app.use('/api/jobs',agendadorRouter)
