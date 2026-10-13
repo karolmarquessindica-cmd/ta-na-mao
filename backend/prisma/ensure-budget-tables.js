@@ -53,7 +53,32 @@ async function main() {
     await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "OrcamentoRevisao_orcamentoId_createdAt_idx" ON "OrcamentoRevisao"("orcamentoId", "createdAt")`);
 
     await tx.$executeRawUnsafe(`
-      DO $$
+      CREATE TABLE IF NOT EXISTS "DespesaPrevista" (
+        "id" TEXT NOT NULL,
+        "condominioId" TEXT NOT NULL,
+        "ano" INTEGER NOT NULL,
+        "nome" TEXT NOT NULL,
+        "categoria" TEXT NOT NULL,
+        "valorPrevisto" DECIMAL(12,2) NOT NULL DEFAULT 0,
+        "valorGasto" DECIMAL(12,2) NOT NULL DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL,
+        CONSTRAINT "DespesaPrevista_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DespesaPrevista_condominioId_ano_idx" ON "DespesaPrevista"("condominioId","ano")`);
+    await tx.$executeRawUnsafe(`
+      DO $
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'DespesaPrevista_condominioId_fkey') THEN
+          ALTER TABLE "DespesaPrevista" ADD CONSTRAINT "DespesaPrevista_condominioId_fkey"
+          FOREIGN KEY ("condominioId") REFERENCES "Condominio"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+      END $
+    `);
+
+    await tx.$executeRawUnsafe(`
+      DO $
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrcamentoCondominio_condominioId_fkey') THEN
           ALTER TABLE "OrcamentoCondominio" ADD CONSTRAINT "OrcamentoCondominio_condominioId_fkey"
@@ -75,11 +100,11 @@ async function main() {
     SELECT table_name
     FROM information_schema.tables
     WHERE table_schema = 'public'
-      AND table_name IN ('OrcamentoCondominio', 'OrcamentoCategoria', 'OrcamentoRevisao')
+      AND table_name IN ('OrcamentoCondominio', 'OrcamentoCategoria', 'OrcamentoRevisao', 'DespesaPrevista')
     ORDER BY table_name
   `;
-  if (tables.length !== 3) {
-    throw new Error(`Previsão Orçamentária: esperadas 3 tabelas, encontradas ${tables.length}.`);
+  if (tables.length !== 4) {
+    throw new Error(`Previsão Orçamentária: esperadas 4 tabelas, encontradas ${tables.length}.`);
   }
   console.log("Previsão Orçamentária: tabelas verificadas/criadas sem sincronização destrutiva do schema.");
 }
