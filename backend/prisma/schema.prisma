@@ -164,6 +164,7 @@ model Condominio {
   whatsappLogs   WhatsAppLog[]
   taxas          Taxa[]
   contasSindico  ContaSindico[]
+  orcamentos     OrcamentoCondominio[]
   espacos        EspacoComum[]
   reservas       Reserva[]
   configWhatsapp ConfigWhatsApp?
@@ -626,4 +627,53 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+}
+
+
+model OrcamentoCondominio {
+  id              String   @id @default(uuid())
+  ano             Int
+  dataAssembleia  DateTime?
+  referenciaAta   String?
+  observacoes     String?
+  criadoPor       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  condominioId String
+  condominio   Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+  categorias   OrcamentoCategoria[]
+  revisoes     OrcamentoRevisao[]
+
+  @@unique([condominioId, ano])
+  @@index([condominioId, ano])
+}
+
+model OrcamentoCategoria {
+  id           String   @id @default(uuid())
+  categoria    String
+  descricao    String?
+  valorMensal  Decimal  @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orcamentoId String
+  orcamento   OrcamentoCondominio @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@unique([orcamentoId, categoria])
+  @@index([orcamentoId])
+}
+
+model OrcamentoRevisao {
+  id          String   @id @default(uuid())
+  acao        String
+  snapshot    Json
+  motivo      String?
+  usuarioId   String?
+  createdAt   DateTime @default(now())
+
+  orcamentoId String
+  orcamento   OrcamentoCondominio @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@index([orcamentoId, createdAt])
 }
