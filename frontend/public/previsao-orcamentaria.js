@@ -75,11 +75,13 @@
     const modal=document.getElementById('tnm-budget-modal');if(!modal)return;
     const d=budgetData||{}, o=d.orcamento||{}, cats=o.categorias||[], ind=d.indicadores||{}, real=d.categoriasRealizadas||{};
     const totalMensal=Number(ind.totalMensalOrcado||0), totalAnual=Number(ind.totalAnualOrcado||0), realizado=Number(ind.realizadoAno||0);
-    const delta=realizado-totalAnual, percent=ind.percentualAno;
+    const monthsElapsed=currentYear<new Date().getFullYear()?12:(currentYear>new Date().getFullYear()?0:new Date().getMonth()+1);
+    const orcadoAcumulado=totalMensal*monthsElapsed;
+    const delta=realizado-orcadoAcumulado, percent=orcadoAcumulado>0?((realizado-orcadoAcumulado)/orcadoAcumulado)*100:null;
     const months=Array.from({length:12},(_,i)=>i+1);
     const monthNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const monthlyRows=months.map((m,i)=>{const act=Object.values(real).reduce((sum,c)=>sum+Number(c.meses?.[m]||0),0);const diff=act-totalMensal;return '<tr><td>'+monthNames[i]+'</td><td>'+money(totalMensal)+'</td><td>'+money(act)+'</td><td style="color:'+(diff>0?'#b42318':'#167344')+'">'+money(diff)+'</td></tr>'}).join('');
-    const catRows=cats.map(c=>{const r=real[c.categoria]||{total:0,pago:0,aberto:0};const annual=Number(c.valorMensal)*12;const diff=Number(r.total)-annual;return '<tr><td>'+esc(categoryNames[c.categoria]||c.categoria)+'</td><td>'+money(Number(c.valorMensal))+'</td><td>'+money(annual)+'</td><td>'+money(r.total)+'</td><td>'+money(r.pago)+'</td><td>'+money(r.aberto)+'</td><td style="color:'+(diff>0?'#b42318':'#167344')+'">'+money(diff)+'</td></tr>'}).join('');
+    const catRows=cats.map(c=>{const r=real[c.categoria]||{total:0,pago:0,aberto:0};const annual=Number(c.valorMensal)*12;const budgetToDate=Number(c.valorMensal)*monthsElapsed;const diff=Number(r.total)-budgetToDate;return '<tr><td>'+esc(categoryNames[c.categoria]||c.categoria)+'</td><td>'+money(Number(c.valorMensal))+'</td><td>'+money(annual)+'</td><td>'+money(r.total)+'</td><td>'+money(r.pago)+'</td><td>'+money(r.aberto)+'</td><td style="color:'+(diff>0?'#b42318':'#167344')+'">'+money(diff)+'</td></tr>'}).join('');
     const budgetedKeys=new Set(cats.map(c=>c.categoria));
     const unbudgetedRows=Object.entries(real).filter(([key])=>!budgetedKeys.has(key)).map(([key,r])=>'<tr><td>'+esc((categoryNames[key]||key)+' · sem previsão')+'</td><td>'+money(0)+'</td><td>'+money(0)+'</td><td>'+money(r.total)+'</td><td>'+money(r.pago)+'</td><td>'+money(r.aberto)+'</td><td style="color:#b42318">'+money(r.total)+'</td></tr>').join('');
     const alert= !o.id?'<div class="tnm-budget-alert">Ainda não existe orçamento cadastrado para '+currentYear+'. Cadastre os valores aprovados em assembleia abaixo para ativar a comparação.</div>':'<div class="tnm-budget-muted" style="margin-top:9px">As despesas são agrupadas pela competência e categoria dos lançamentos financeiros. Os lançamentos cancelados são desconsiderados.</div>';
@@ -87,11 +89,11 @@
       <div class="tnm-budget-head"><div><div style="font-size:10px;font-weight:900;letter-spacing:1px;color:#16804a;text-transform:uppercase">Financeiro da edificação</div><h2 class="tnm-budget-title">Previsão orçamentária</h2><div class="tnm-budget-sub">${esc(condoActive?.nome)} · Orçado x realizado</div></div><div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap"><select id="tnm-budget-year" class="tnm-budget-btn">${Array.from({length:7},(_,i)=>new Date().getFullYear()-3+i).map(y=>'<option '+(y===currentYear?'selected':'')+' value="'+y+'">'+y+'</option>').join('')}</select><button class="tnm-budget-btn" data-close>Fechar ✕</button></div></div>
       <div class="tnm-budget-stats">
         <div class="tnm-budget-stat"><span>ORÇAMENTO MENSAL</span><strong>${money(totalMensal)}</strong></div>
-        <div class="tnm-budget-stat"><span>ORÇAMENTO ANUAL</span><strong>${money(totalAnual)}</strong></div>
+        <div class="tnm-budget-stat"><span>ORÇADO ACUMULADO</span><strong>${money(orcadoAcumulado)}</strong></div>
         <div class="tnm-budget-stat"><span>REALIZADO NO ANO</span><strong>${money(realizado)}</strong></div>
         <div class="tnm-budget-stat"><span>DESVIO ANUAL</span><strong style="color:${delta>0?'#b42318':'#167344'}">${money(delta)} ${percent===null?'': '('+Number(percent).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%)'}</strong></div>
       </div>
-      <div class="tnm-budget-muted">Pago no ano: <b>${money(ind.pagoAno)}</b> · Em aberto: <b>${money(ind.abertoAno)}</b>. O desvio compara as despesas lançadas com o orçamento anual.</div>
+      <div class="tnm-budget-muted">Pago no ano: <b>${money(ind.pagoAno)}</b> · Em aberto: <b>${money(ind.abertoAno)}</b>. O desvio compara as despesas lançadas com o orçamento esperado até o mês selecionado. Orçamento anual completo: <b>${money(totalAnual)}</b>.</div>
       ${alert}
       <section class="tnm-budget-card"><h3>Comparativo mensal</h3><div class="tnm-budget-table-wrap"><table class="tnm-budget-table"><thead><tr><th>Mês</th><th>Orçado</th><th>Realizado</th><th>Diferença</th></tr></thead><tbody>${monthlyRows}</tbody></table></div></section>
       <section class="tnm-budget-card"><h3>Por categoria</h3><div class="tnm-budget-table-wrap"><table class="tnm-budget-table"><thead><tr><th>Categoria</th><th>Orçado/mês</th><th>Orçado/ano</th><th>Realizado</th><th>Pago</th><th>Em aberto</th><th>Desvio</th></tr></thead><tbody>${catRows+unbudgetedRows||'<tr><td colspan="7" style="text-align:center;padding:20px">Cadastre as categorias orçadas abaixo.</td></tr>'}</tbody></table></div></section>
