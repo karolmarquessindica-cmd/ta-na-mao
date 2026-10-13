@@ -2431,6 +2431,21 @@ function EdificacoesPage({ user, onUserChange, go, toast }) {
           ))}
         </div>
 
+        <div className="card" style={{padding:18,marginBottom:16}}>
+          <div style={{marginBottom:12}}>
+            <h2 style={{fontFamily:"'Sora',sans-serif",fontSize:17,fontWeight:800}}>Módulos deste condomínio</h2>
+            <p style={{fontSize:12,color:C.muted,marginTop:4}}>Selecione uma opção para gerenciar as informações desta edificação.</p>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:10}}>
+            <button type="button" className="btn btn-ghost" onClick={()=>setShowPlano(true)} style={{justifyContent:"flex-start",padding:14}}>
+              <Ic n="wrench" s={18}/><span style={{textAlign:"left"}}><strong style={{display:"block"}}>Manutenções</strong><small style={{fontWeight:400,color:C.muted}}>Plano e atividades preventivas</small></span>
+            </button>
+            <button type="button" className="btn btn-ghost" data-tnm-open-budget="1" style={{justifyContent:"flex-start",padding:14}}>
+              <Ic n="money" s={18}/><span style={{textAlign:"left"}}><strong style={{display:"block"}}>Previsão Orçamentária</strong><small style={{fontWeight:400,color:C.muted}}>Previsto, gasto e alertas de excesso</small></span>
+            </button>
+          </div>
+        </div>
+
         <div className="card" style={{padding:22,marginBottom:16,border:`1.5px solid ${C.primary}`,boxShadow:"0 10px 34px rgba(15,76,129,.10)"}}>
           <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(260px,.72fr)",gap:20,alignItems:"start"}}>
             <div>
