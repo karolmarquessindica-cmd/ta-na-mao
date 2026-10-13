@@ -29,6 +29,7 @@ orcamentoRouter.get('/', async (req, res, next) => {
     const ano = Number(req.query.ano) || new Date().getFullYear()
     if (!Number.isInteger(ano) || ano < 2000 || ano > 2200) return res.status(400).json({ error: 'Ano inválido.' })
     const condominioId = req.user.condominioId
+    if (!condominioId) return res.status(403).json({ error: 'Usuário sem edificação vinculada.' })
     const orcamento = await prisma.orcamentoCondominio.findUnique({
       where: { condominioId_ano: { condominioId, ano } },
       include: { categorias: { orderBy: { categoria: 'asc' } } },
@@ -128,6 +129,7 @@ orcamentoRouter.put('/', async (req, res, next) => {
 orcamentoRouter.get('/historico', async (req, res, next) => {
   try {
     const ano = Number(req.query.ano) || new Date().getFullYear()
+    if (!req.user.condominioId) return res.status(403).json({ error: 'Usuário sem edificação vinculada.' })
     const item = await prisma.orcamentoCondominio.findUnique({
       where: { condominioId_ano: { condominioId: req.user.condominioId, ano } },
       select: { id: true },
