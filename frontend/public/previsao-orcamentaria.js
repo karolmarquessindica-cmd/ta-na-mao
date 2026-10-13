@@ -45,7 +45,8 @@
     if(!current)return;
     document.querySelectorAll('.card').forEach(card=>{
       const details=[...card.querySelectorAll('button')].find(b=>normalize(b.textContent).includes('detalhes'));
-      if(!details||card.querySelector('.tnm-budget-launch'))return;
+      if(!details||card.querySelector('.tnm-budget-launch')||card.dataset.tnmBudgetPending==='1')return;
+      card.dataset.tnmBudgetPending='1';
       const title=normalize(card.textContent);
       // Only expose the budget action on the condominium tied to this authenticated session.
       req('/condominios?limit=200').then(data=>{
