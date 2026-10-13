@@ -150,6 +150,81 @@ orcamentoRouter.put('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+
+const categoriasItemValidas = new Set(['IMPOSTO','MAO_DE_OBRA','FORNECEDOR','MANUTENCAO','SERVICO','UTILIDADE','SEGURO','OUTRO'])
+
+orcamentoRouter.get('/itens', async (req, res, next) => {
+  try {
+    const ano = Number(req.query.ano) || new Date().getFullYear()
+    const condominioId = await resolveCondominioId(req, res, req.query.condominioId)
+    if (!condominioId) return
+    const itens = await prisma.$queryRaw`
+      SELECT "id", "nome", "categoria", "valorPrevisto", "valorGasto", "createdAt", "updatedAt"
+      FROM "DespesaPrevista"
+      WHERE "condominioId" = ${condominioId} AND "ano" = ${ano}
+      ORDER BY "createdAt" DESC
+    `
+    res.json({ itens })
+  } catch (e) { next(e) }
+})
+
+orcamentoRouter.post('/itens', async (req, res, next) => {
+  try {
+    const condominioId = await resolveCondominioId(req, res, req.body?.condominioId)
+    if (!condominioId) return
+    const ano = Number(req.body?.ano) || new Date().getFullYear()
+    const nome = String(req.body?.nome || '').trim().slice(0, 200)
+    const categoria = String(req.body?.categoria || '').trim().toUpperCase()
+    const valorPrevisto = Number(req.body?.valorPrevisto)
+    if (!nome) return res.status(400).json({ error: 'Informe o nome da despesa.' })
+    if (!categoriasItemValidas.has(categoria)) return res.status(400).json({ error: 'Selecione uma categoria válida.' })
+    if (!Number.isFinite(valorPrevisto) || valorPrevisto < 0) return res.status(400).json({ error: 'Informe um valor previsto válido.' })
+    const id = crypto.randomUUID()
+    const itens = await prisma.$queryRaw`
+      INSERT INTO "DespesaPrevista" ("id","condominioId","ano","nome","categoria","valorPrevisto","valorGasto","createdAt","updatedAt")
+      VALUES (${id},${condominioId},${ano},${nome},${categoria},${valorPrevisto},0,NOW(),NOW())
+      RETURNING "id","nome","categoria","valorPrevisto","valorGasto","createdAt","updatedAt"
+    `
+    res.status(201).json({ item: itens[0] })
+  } catch (e) { next(e) }
+})
+
+orcamentoRouter.put('/itens/:id', async (req, res, next) => {
+  try {
+    const condominioId = await resolveCondominioId(req, res, req.body?.condominioId)
+    if (!condominioId) return
+    const ano = Number(req.body?.ano) || new Date().getFullYear()
+    const nome = String(req.body?.nome || '').trim().slice(0, 200)
+    const categoria = String(req.body?.categoria || '').trim().toUpperCase()
+    const valorPrevisto = Number(req.body?.valorPrevisto)
+    const valorGasto = Number(req.body?.valorGasto ?? 0)
+    if (!nome) return res.status(400).json({ error: 'Informe o nome da despesa.' })
+    if (!categoriasItemValidas.has(categoria)) return res.status(400).json({ error: 'Selecione uma categoria válida.' })
+    if (!Number.isFinite(valorPrevisto) || valorPrevisto < 0 || !Number.isFinite(valorGasto) || valorGasto < 0) return res.status(400).json({ error: 'Informe valores válidos.' })
+    const itens = await prisma.$queryRaw`
+      UPDATE "DespesaPrevista"
+      SET "nome"=${nome},"categoria"=${categoria},"valorPrevisto"=${valorPrevisto},"valorGasto"=${valorGasto},"updatedAt"=NOW()
+      WHERE "id"=${req.params.id} AND "condominioId"=${condominioId} AND "ano"=${ano}
+      RETURNING "id","nome","categoria","valorPrevisto","valorGasto","createdAt","updatedAt"
+    `
+    if (!itens.length) return res.status(404).json({ error: 'Despesa não encontrada nesta edificação.' })
+    res.json({ item: itens[0] })
+  } catch (e) { next(e) }
+})
+
+orcamentoRouter.delete('/itens/:id', async (req, res, next) => {
+  try {
+    const condominioId = await resolveCondominioId(req, res, req.query.condominioId)
+    if (!condominioId) return
+    const ano = Number(req.query.ano) || new Date().getFullYear()
+    const result = await prisma.$executeRaw`
+      DELETE FROM "DespesaPrevista" WHERE "id"=${req.params.id} AND "condominioId"=${condominioId} AND "ano"=${ano}
+    `
+    if (!result) return res.status(404).json({ error: 'Despesa não encontrada nesta edificação.' })
+    res.json({ success: true })
+  } catch (e) { next(e) }
+})
+
 orcamentoRouter.get('/historico', async (req, res, next) => {
   try {
     const ano = Number(req.query.ano) || new Date().getFullYear()
