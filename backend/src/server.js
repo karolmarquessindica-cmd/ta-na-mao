@@ -23,6 +23,7 @@ import { dashboardRouter } from './routes/dashboard.js'
 import { notificacaoRouter } from './routes/notificacao.js'
 import { whatsappRouter } from './routes/whatsapp.js'
 import { financeiroRouter } from './routes/financeiro.js'
+import { orcamentoRouter } from './routes/orcamento.js'
 import { reservaRouter } from './routes/reserva.js'
 import { relatorioRouter } from './routes/relatorio.js'
 import { iaRouter } from './routes/ia.js'
@@ -64,7 +65,7 @@ app.use(requestId);app.use('/api',apiLimiter)
 app.use('/api/auth',authRouter);app.use('/api/logo-data',logoDataPublicRouter)
 app.use('/api/manutencoes',manutencaoExecucaoPublicaRouter);app.use('/api/manutencoes',manutencaoPlanejamentoRouter);app.use('/api/manutencoes',manutencaoRouter)
 app.use('/api/maintenance',manutencaoExecucaoPublicaRouter);app.use('/api/maintenance',manutencaoPlanejamentoRouter);app.use('/api/maintenance',manutencaoRouter)
-app.use('/api/chamados',chamadoRouter);app.use('/api/documentos',documentoRouter);app.use('/api/voz',vozRouter);app.use('/api/banners',bannerRouter);app.use('/api/inventario',inventarioRouter);app.use('/api/denuncias',denunciaRouter);app.use('/api/comunicados',comunicadoRouter);app.use('/api/dashboard',dashboardRouter);app.use('/api/notificacoes',notificacaoRouter);app.use('/api/whatsapp',whatsappRouter);app.use('/api/financeiro',financeiroRouter);app.use('/api/reservas',reservaRouter);app.use('/api/relatorios',relatorioRouter);app.use('/api/ia',iaRouter)
+app.use('/api/chamados',chamadoRouter);app.use('/api/documentos',documentoRouter);app.use('/api/voz',vozRouter);app.use('/api/banners',bannerRouter);app.use('/api/inventario',inventarioRouter);app.use('/api/denuncias',denunciaRouter);app.use('/api/comunicados',comunicadoRouter);app.use('/api/dashboard',dashboardRouter);app.use('/api/notificacoes',notificacaoRouter);app.use('/api/whatsapp',whatsappRouter);app.use('/api/financeiro',financeiroRouter);app.use('/api/orcamento',orcamentoRouter);app.use('/api/reservas',reservaRouter);app.use('/api/relatorios',relatorioRouter);app.use('/api/ia',iaRouter)
 app.use('/api/cotacoes',cotacaoRouter)
 app.use('/api/gestao-acao',gestaoAcaoDeleteSafeRouter);app.use('/api/gestao-acao',gestaoAcaoSyncSafeRouter);app.use('/api/gestao-acao',gestaoAcaoRouter);app.use('/api/gestao-acao-recovery',gestaoAcaoRecoveryRouter)
 app.use('/api/condominios',manutencaoControleRouter);app.use('/api/condominios',portalSlugSafeRouter);app.use('/api/condominios',portalConfigSaveSafeRouter);app.use('/api/condominios',portalConfigCompatRouter);app.use('/api/condominios',portalDocumentosSafeRouter);app.use('/api/condominios',condominioLogoSafeRouter);app.use('/api/condominios',condominioDeleteSafeRouter);app.use('/api/condominios',condominioRouter)
