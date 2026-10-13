@@ -68,17 +68,17 @@ async function main() {
     `);
     await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "DespesaPrevista_condominioId_ano_idx" ON "DespesaPrevista"("condominioId","ano")`);
     await tx.$executeRawUnsafe(`
-      DO $
+      DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'DespesaPrevista_condominioId_fkey') THEN
           ALTER TABLE "DespesaPrevista" ADD CONSTRAINT "DespesaPrevista_condominioId_fkey"
           FOREIGN KEY ("condominioId") REFERENCES "Condominio"("id") ON DELETE CASCADE ON UPDATE CASCADE;
         END IF;
-      END $
+      END $$
     `);
 
     await tx.$executeRawUnsafe(`
-      DO $
+      DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'OrcamentoCondominio_condominioId_fkey') THEN
           ALTER TABLE "OrcamentoCondominio" ADD CONSTRAINT "OrcamentoCondominio_condominioId_fkey"
