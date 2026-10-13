@@ -10,7 +10,7 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "render:build": "npm install && npm run db:generate && npx prisma db push",
+    "render:build": "npm install && npm run db:generate && node prisma/ensure-budget-tables.js",
     "render:dbpush": "npm run db:push",
     "db:seed": "node src/lib/seed.js",
     "db:reset": "prisma migrate reset --force && node src/lib/seed.js",
