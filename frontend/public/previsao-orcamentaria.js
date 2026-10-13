@@ -39,39 +39,27 @@
     `;document.head.appendChild(s);
   }
   function isEdificacoes(){return [...document.querySelectorAll('h1')].some(el=>normalize(el.textContent)==='edificacoes');}
+  let condosCache=null, condosPromise=null;
+  async function getCondos(){
+    if(condosCache)return condosCache;
+    if(!condosPromise)condosPromise=req('/condominios?limit=200').then(data=>{condosCache=Array.isArray(data)?data:(data.data||data.items||[]);return condosCache}).finally(()=>{condosPromise=null});
+    return condosPromise;
+  }
   function attachButtons(){
-    if(!token()) return;
-    const user=payloadUser();const current=String(user?.condominioId||'');
-    if(!current)return;
-    // Persistent, visible shortcut for authenticated managers, independent of card markup.
-    if(!document.getElementById('tnm-budget-global-launch')){
-      req('/condominios?limit=200').then(data=>{
-        const list=Array.isArray(data)?data:(data.data||data.items||[]);
-        const condo=list.find(x=>String(x.id)===current);
-        if(!condo || document.getElementById('tnm-budget-global-launch'))return;
-        const btn=document.createElement('button');
-        btn.id='tnm-budget-global-launch';btn.type='button';
-        btn.textContent='▤ Previsão orçamentária';
-        btn.setAttribute('aria-label','Abrir previsão orçamentária do condomínio');
-        btn.style.cssText='position:fixed;right:22px;bottom:22px;z-index:100200;background:#003B24;color:#fff;border:2px solid #fff;border-radius:14px;padding:14px 18px;font:800 14px Arial,sans-serif;box-shadow:0 5px 22px #001b1050;cursor:pointer;max-width:calc(100vw - 36px)';
-        btn.addEventListener('click',()=>openBudget(condo));
-        document.body.appendChild(btn);
-      }).catch(()=>{});
-    }
-    // Also place a shortcut under the matching condominium card on Edificações.
-    if(!isEdificacoes())return;
+    if(!token()||!isEdificacoes())return;
     document.querySelectorAll('.card').forEach(card=>{
       const details=[...card.querySelectorAll('button')].find(b=>normalize(b.textContent).includes('detalhes'));
       if(!details||card.querySelector('.tnm-budget-launch')||card.dataset.tnmBudgetPending==='1')return;
       card.dataset.tnmBudgetPending='1';
-      const title=normalize(card.textContent);
-      req('/condominios?limit=200').then(data=>{
-        const list=Array.isArray(data)?data:(data.data||data.items||[]);
-        const condo=list.find(x=>String(x.id)===current);
-        if(!condo||!title.includes(normalize(condo.nome)))return;
-        const btn=document.createElement('button');btn.type='button';btn.className='tnm-budget-launch';btn.textContent='▤ Previsão orçamentária';
-        btn.addEventListener('click',()=>openBudget(condo));details.insertAdjacentElement('afterend',btn);
-      }).catch(()=>{});
+      getCondos().then(list=>{
+        const title=normalize(card.textContent);
+        const condo=list.find(x=>x.nome&&title.includes(normalize(x.nome)));
+        if(!condo||!card.isConnected||card.querySelector('.tnm-budget-launch'))return;
+        const btn=document.createElement('button');btn.type='button';btn.className='tnm-budget-launch';
+        btn.textContent='▤ Previsão orçamentária';btn.setAttribute('aria-label','Previsão orçamentária de '+condo.nome);
+        btn.addEventListener('click',()=>openBudget(condo));
+        details.insertAdjacentElement('afterend',btn);
+      }).catch(()=>{card.dataset.tnmBudgetPending='0'});
     });
   }
   let condoActive=null, currentYear=new Date().getFullYear(), budgetData=null;
@@ -84,7 +72,7 @@
   }
   async function loadBudget(year){
     currentYear=year;
-    budgetData=await req('/orcamento?ano='+year);
+    budgetData=await req('/orcamento?ano='+year+'&condominioId='+encodeURIComponent(condoActive.id));
     renderBudget();
   }
   function renderBudget(){
@@ -141,8 +129,8 @@
     button.disabled=true;button.textContent='Salvando…';message.textContent='';
     try{
       const year=Number(modal.querySelector('#tnm-budget-form-year').value);
-      await req('/orcamento',{method:'PUT',body:JSON.stringify({ano:year,dataAssembleia:modal.querySelector('#tnm-budget-date').value||null,referenciaAta:modal.querySelector('#tnm-budget-ata').value,observacoes:modal.querySelector('#tnm-budget-notes').value,categorias,motivoRevisao:'Atualização realizada pela tela de previsão orçamentária'})});
-      currentYear=year;budgetData=await req('/orcamento?ano='+year);renderBudget();
+      await req('/orcamento',{method:'PUT',body:JSON.stringify({condominioId:condoActive.id,ano:year,dataAssembleia:modal.querySelector('#tnm-budget-date').value||null,referenciaAta:modal.querySelector('#tnm-budget-ata').value,observacoes:modal.querySelector('#tnm-budget-notes').value,categorias,motivoRevisao:'Atualização realizada pela tela de previsão orçamentária'})});
+      currentYear=year;budgetData=await req('/orcamento?ano='+year+'&condominioId='+encodeURIComponent(condoActive.id));renderBudget();
       const m=document.getElementById('tnm-budget-message');if(m)m.textContent='Orçamento salvo e histórico atualizado.';
     }catch(e){message.textContent='Não foi possível salvar: '+e.message;}
     finally{const b=modal.querySelector('#tnm-budget-save');if(b){b.disabled=false;b.textContent='Salvar orçamento';}}
