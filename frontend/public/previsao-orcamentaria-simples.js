@@ -11,31 +11,24 @@
  async function getCondos(){const d=await req('/condominios?limit=200');return Array.isArray(d)?d:(d.data||d.items||[]);}
  function attach(){
   if(!token())return;
-  const page=document.querySelector('.page');
-  if(!page)return;
-  const h1=page.querySelector('h1');
-  const name=norm(h1?.textContent||'');
-  const marker=[...page.querySelectorAll('div,span,h2,h3')].find(x=>norm(x.textContent)==='centro de controle do condominio');
-  if(!marker||!name)return;
-  const menuCandidates=[...page.querySelectorAll('button,a,[role="button"],.nav-item,.tab')];
-  if(menuCandidates.some(x=>norm(x.textContent).includes('previsao orcamentaria')))return;
-  if(page.dataset.tnmBudgetMenuPending==='1')return;
-  page.dataset.tnmBudgetMenuPending='1';
-  getCondos().then(list=>{
-    const condo=list.find(x=>norm(x.nome)===name);
-    if(!condo||!page.isConnected)return;
-    const options=menuCandidates.find(x=>['manutencoes','financeiro','documentos','chamados'].includes(norm(x.textContent)));
-    const btn=document.createElement(options?.tagName==='A'?'a':'button');
-    btn.type='button';btn.className=options?.className||'btn btn-ghost btn-sm';
-    btn.textContent='▤ Previsão Orçamentária';
-    btn.setAttribute('aria-label','Previsão orçamentária de '+condo.nome);
-    btn.addEventListener('click',e=>{e.preventDefault();open(condo)});
-    if(options?.parentElement)options.insertAdjacentElement('afterend',btn);
-    else {
-      const heading=marker.closest('.card')||marker.parentElement;
-      heading.appendChild(btn);
-    }
-  }).catch(()=>{page.dataset.tnmBudgetMenuPending='0'});
+  document.querySelectorAll('[data-tnm-open-budget="1"]').forEach(btn=>{
+    if(btn.dataset.tnmBudgetBound==='1')return;
+    btn.dataset.tnmBudgetBound='1';
+    btn.addEventListener('click',async e=>{
+      e.preventDefault();
+      const page=btn.closest('.page')||document.querySelector('.page');
+      const name=norm(page?.querySelector('h1')?.textContent||'');
+      if(!name)return;
+      btn.disabled=true;
+      try{
+        const list=await getCondos();
+        const selected=list.find(x=>norm(x.nome)===name);
+        if(!selected)throw Error('Não foi possível identificar o condomínio selecionado.');
+        open(selected);
+      }catch(err){alert(err.message)}
+      finally{btn.disabled=false;}
+    });
+  });
  }
  async function open(c){condo=c;css();document.getElementById('tnm-simple-modal')?.remove();const m=document.createElement('div');m.id='tnm-simple-modal';m.innerHTML='<div class="tnm-simple-shell">Carregando despesas…</div>';document.body.appendChild(m);m.onclick=e=>{if(e.target===m)m.remove();};try{await load();}catch(e){m.querySelector('.tnm-simple-shell').textContent=e.message;}}
  async function load(){const d=await req('/orcamento/itens?ano='+year+'&condominioId='+encodeURIComponent(condo.id));items=d.itens||[];render();}
