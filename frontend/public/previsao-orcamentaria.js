@@ -40,15 +40,31 @@
   }
   function isEdificacoes(){return [...document.querySelectorAll('h1')].some(el=>normalize(el.textContent)==='edificacoes');}
   function attachButtons(){
-    if(!token()||!isEdificacoes())return;
+    if(!token()) return;
     const user=payloadUser();const current=String(user?.condominioId||'');
     if(!current)return;
+    // Persistent, visible shortcut for authenticated managers, independent of card markup.
+    if(!document.getElementById('tnm-budget-global-launch')){
+      req('/condominios?limit=200').then(data=>{
+        const list=Array.isArray(data)?data:(data.data||data.items||[]);
+        const condo=list.find(x=>String(x.id)===current);
+        if(!condo || document.getElementById('tnm-budget-global-launch'))return;
+        const btn=document.createElement('button');
+        btn.id='tnm-budget-global-launch';btn.type='button';
+        btn.textContent='▤ Previsão orçamentária';
+        btn.setAttribute('aria-label','Abrir previsão orçamentária do condomínio');
+        btn.style.cssText='position:fixed;right:22px;bottom:22px;z-index:100200;background:#003B24;color:#fff;border:2px solid #fff;border-radius:14px;padding:14px 18px;font:800 14px Arial,sans-serif;box-shadow:0 5px 22px #001b1050;cursor:pointer;max-width:calc(100vw - 36px)';
+        btn.addEventListener('click',()=>openBudget(condo));
+        document.body.appendChild(btn);
+      }).catch(()=>{});
+    }
+    // Also place a shortcut under the matching condominium card on Edificações.
+    if(!isEdificacoes())return;
     document.querySelectorAll('.card').forEach(card=>{
       const details=[...card.querySelectorAll('button')].find(b=>normalize(b.textContent).includes('detalhes'));
       if(!details||card.querySelector('.tnm-budget-launch')||card.dataset.tnmBudgetPending==='1')return;
       card.dataset.tnmBudgetPending='1';
       const title=normalize(card.textContent);
-      // Only expose the budget action on the condominium tied to this authenticated session.
       req('/condominios?limit=200').then(data=>{
         const list=Array.isArray(data)?data:(data.data||data.items||[]);
         const condo=list.find(x=>String(x.id)===current);
