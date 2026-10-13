@@ -5,6 +5,30 @@ import { authenticate, requireRole } from '../middleware/auth.js'
 export const orcamentoRouter = Router()
 orcamentoRouter.use(authenticate, requireRole('ADMIN', 'SINDICO'))
 
+async function resolveCondominioId(req, res, requestedId) {
+  const condominioId = String(requestedId || req.user?.condominioId || '').trim()
+  if (!condominioId) {
+    res.status(400).json({ error: 'Selecione uma edificação para consultar o orçamento.' })
+    return null
+  }
+  if (req.user?.role === 'ADMIN') return condominioId
+  if (req.user?.role !== 'SINDICO') {
+    res.status(403).json({ error: 'Acesso negado.' })
+    return null
+  }
+  if (String(req.user?.condominioId || '') === condominioId) return condominioId
+  const acesso = await prisma.condominioAcesso.findUnique({
+    where: { userId_condominioId: { userId: req.user.id, condominioId } },
+    select: { id: true },
+  })
+  if (!acesso) {
+    res.status(403).json({ error: 'Você não tem acesso financeiro a esta edificação.' })
+    return null
+  }
+  return condominioId
+}
+
+
 const categoriasValidas = new Set([
   'IMPOSTO', 'MAO_DE_OBRA', 'FORNECEDOR', 'MANUTENCAO',
   'SERVICO', 'UTILIDADE', 'SEGURO', 'OUTRO',
@@ -28,8 +52,8 @@ orcamentoRouter.get('/', async (req, res, next) => {
   try {
     const ano = Number(req.query.ano) || new Date().getFullYear()
     if (!Number.isInteger(ano) || ano < 2000 || ano > 2200) return res.status(400).json({ error: 'Ano inválido.' })
-    const condominioId = req.user.condominioId
-    if (!condominioId) return res.status(403).json({ error: 'Usuário sem edificação vinculada.' })
+    const condominioId = await resolveCondominioId(req, res, req.query.condominioId)
+    if (!condominioId) return
     const orcamento = await prisma.orcamentoCondominio.findUnique({
       where: { condominioId_ano: { condominioId, ano } },
       include: { categorias: { orderBy: { categoria: 'asc' } } },
@@ -79,8 +103,8 @@ orcamentoRouter.put('/', async (req, res, next) => {
     const ano = Number(req.body?.ano)
     if (!Number.isInteger(ano) || ano < 2000 || ano > 2200) return res.status(400).json({ error: 'Informe um ano válido.' })
     const categorias = normalizarCategorias(req.body?.categorias)
-    const condominioId = req.user.condominioId
-    if (!condominioId) return res.status(403).json({ error: 'Usuário sem edificação vinculada.' })
+    const condominioId = await resolveCondominioId(req, res, req.body?.condominioId)
+    if (!condominioId) return
     const dataAssembleia = req.body?.dataAssembleia ? new Date(req.body.dataAssembleia) : null
     if (dataAssembleia && Number.isNaN(dataAssembleia.getTime())) return res.status(400).json({ error: 'Data da assembleia inválida.' })
     const resultado = await prisma.$transaction(async tx => {
@@ -129,9 +153,10 @@ orcamentoRouter.put('/', async (req, res, next) => {
 orcamentoRouter.get('/historico', async (req, res, next) => {
   try {
     const ano = Number(req.query.ano) || new Date().getFullYear()
-    if (!req.user.condominioId) return res.status(403).json({ error: 'Usuário sem edificação vinculada.' })
+    const condominioId = await resolveCondominioId(req, res, req.query.condominioId)
+    if (!condominioId) return
     const item = await prisma.orcamentoCondominio.findUnique({
-      where: { condominioId_ano: { condominioId: req.user.condominioId, ano } },
+      where: { condominioId_ano: { condominioId, ano } },
       select: { id: true },
     })
     if (!item) return res.json({ historico: [] })
