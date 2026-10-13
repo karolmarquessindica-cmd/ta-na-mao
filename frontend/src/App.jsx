@@ -2440,7 +2440,7 @@ function EdificacoesPage({ user, onUserChange, go, toast }) {
             <button type="button" className="btn btn-ghost" onClick={()=>setShowPlano(true)} style={{justifyContent:"flex-start",padding:14}}>
               <Ic n="wrench" s={18}/><span style={{textAlign:"left"}}><strong style={{display:"block"}}>Manutenções</strong><small style={{fontWeight:400,color:C.muted}}>Plano e atividades preventivas</small></span>
             </button>
-            <button type="button" className="btn btn-ghost" data-tnm-open-budget="1" style={{justifyContent:"flex-start",padding:14}}>
+            <button type="button" className="btn btn-ghost" data-tnm-open-budget="1" data-condominio-id={detail.id} style={{justifyContent:"flex-start",padding:14}}>
               <Ic n="money" s={18}/><span style={{textAlign:"left"}}><strong style={{display:"block"}}>Previsão Orçamentária</strong><small style={{fontWeight:400,color:C.muted}}>Previsto, gasto e alertas de excesso</small></span>
             </button>
           </div>
